@@ -1,0 +1,47 @@
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth.jsx';
+import TermsModal from './TermsModal.jsx';
+
+export function Logo({ size = 44 }) {
+  return <img src="/logo-512.jpg" alt="The Creator Club by Noa Avital" width={size} height={size} className="logo" />;
+}
+
+export default function Layout() {
+  const { me, logout } = useAuth();
+  const nav = useNavigate();
+  const role = me?.user?.role;
+  const home = role === 'admin' ? '/admin' : me ? '/dashboard' : '/';
+
+  const doLogout = async () => { await logout(); nav('/'); };
+
+  return (
+    <div className={role === 'admin' ? 'app admin' : 'app'}>
+      <header className="topbar">
+        <Link to={home} className="brand"><Logo size={40} /><span>The Creator Club</span></Link>
+        {me && !me.needs_profile && (
+          <nav className="topnav">
+            {role === 'admin' ? (
+              <>
+                <NavLink to="/admin" end>היום</NavLink>
+                <NavLink to="/admin/creators">יוצרות</NavLink>
+                <NavLink to="/admin/campaigns">קמפיינים</NavLink>
+                <NavLink to="/admin/brands">מותגים</NavLink>
+              </>
+            ) : (
+              <>
+                <NavLink to="/dashboard">ראשי</NavLink>
+                <NavLink to="/me/applications">ההגשות שלי</NavLink>
+                <NavLink to="/me" end>פרופיל</NavLink>
+              </>
+            )}
+            <button type="button" className="linklike" onClick={doLogout}>יציאה</button>
+          </nav>
+        )}
+      </header>
+      <main className="container">
+        <Outlet />
+      </main>
+      {me?.needs_terms && <TermsModal />}
+    </div>
+  );
+}

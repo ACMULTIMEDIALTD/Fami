@@ -1,0 +1,83 @@
+import { useState } from 'react';
+import { Link, Navigate } from 'react-router-dom';
+import { api } from '../api.js';
+import { useAuth, Spinner } from '../auth.jsx';
+import { Field, ErrorBox } from '../components/ui.jsx';
+import ProfileWizard from '../components/ProfileWizard.jsx';
+
+function AccountStep({ onDone }) {
+  const [f, setF] = useState({ email: '', phone: '', password: '' });
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post('/auth/signup', f);
+      await onDone();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const fe = error?.fields || {};
+
+  return (
+    <form className="card form" onSubmit={submit} noValidate>
+      <Field label="מייל" required error={fe.email}>
+        <input type="email" dir="ltr" value={f.email} onChange={set('email')} autoComplete="email" />
+      </Field>
+      <Field label="טלפון נייד" required error={fe.phone}>
+        <input type="tel" dir="ltr" value={f.phone} onChange={set('phone')} autoComplete="tel" placeholder="050-0000000" />
+      </Field>
+      <Field label="סיסמה (לא חובה)" error={fe.password} hint="אפשר לוותר. נשלח לך קישור כניסה למייל בכל פעם.">
+        <input type="password" dir="ltr" value={f.password} onChange={set('password')} autoComplete="new-password" />
+      </Field>
+      <ErrorBox error={error && !Object.keys(fe).length ? error : null} />
+      {['email_taken', 'phone_taken'].includes(error?.code) && <p><Link to="/login">למעבר לכניסה ←</Link></p>}
+      <button className="btn primary block" disabled={busy}>{busy ? 'רגע…' : 'המשך לפרופיל'}</button>
+      <p className="center-text muted">כבר חברה? <Link to="/login">כניסה</Link></p>
+    </form>
+  );
+}
+
+export default function Join() {
+  const { me, refresh } = useAuth();
+  const [done, setDone] = useState(false);
+
+  if (me === undefined) return <Spinner />;
+  if (done) {
+    return (
+      <div className="narrow card center thanks">
+        <img src="/logo-512.jpg" alt="" width="120" height="120" className="hero-logo sm" />
+        <h1>תודה! 💛</h1>
+        <p>נועה מאשרת חברות תוך 48 שעות. נעדכן אותך במייל.</p>
+        <Link className="btn primary" to="/dashboard">לאזור האישי</Link>
+      </div>
+    );
+  }
+  if (me && !me.needs_profile) return <Navigate to={me.user.role === 'admin' ? '/admin' : '/dashboard'} replace />;
+
+  return (
+    <div className="narrow">
+      <h1 className="page-title">הצטרפות לקהילה</h1>
+      {!me ? (
+        <>
+          <p className="lead-sm">כמה פרטים ונתחיל. ההרשמה לוקחת בערך 3 דקות.</p>
+          <AccountStep onDone={refresh} />
+        </>
+      ) : (
+        <ProfileWizard
+          requireTerms
+          terms={me.terms}
+          submitLabel="סיום הרשמה"
+          onSaved={async () => { setDone(true); await refresh(); }}
+        />
+      )}
+    </div>
+  );
+}
