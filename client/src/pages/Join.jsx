@@ -1,3 +1,4 @@
+import logoUrl from '../assets/logo.jpg';
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { api } from '../api.js';
@@ -53,7 +54,7 @@ export default function Join() {
   if (done) {
     return (
       <div className="narrow card center thanks">
-        <img src="/logo-512.jpg" alt="" width="120" height="120" className="hero-logo sm" />
+        <img src={logoUrl} alt="" width="120" height="120" className="hero-logo sm" />
         <h1>תודה! 💛</h1>
         <p>נועה מאשרת חברות תוך 48 שעות. נעדכן אותך במייל.</p>
         <Link className="btn primary" to="/dashboard">לאזור האישי</Link>

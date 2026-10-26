@@ -1,18 +1,27 @@
+import logoUrl from '../assets/logo.jpg';
+import { startTransition } from 'react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import TermsModal from './TermsModal.jsx';
 
 export function Logo({ size = 44 }) {
-  return <img src="/logo-512.jpg" alt="The Creator Club by Noa Avital" width={size} height={size} className="logo" />;
+  return <img src={logoUrl} alt="The Creator Club by Noa Avital" width={size} height={size} className="logo" />;
 }
 
 export default function Layout() {
-  const { me, logout } = useAuth();
+  const { me, logout, setMe } = useAuth();
   const nav = useNavigate();
   const role = me?.user?.role;
   const home = role === 'admin' ? '/admin' : me ? '/dashboard' : '/';
 
-  const doLogout = async () => { await logout(); nav('/'); };
+  const doLogout = async () => {
+    await logout({ keepState: true });
+    // Same transition as the navigation, so the protected page unmounts before its guard redirects to /login
+    startTransition(() => {
+      setMe(null);
+      nav('/');
+    });
+  };
 
   return (
     <div className={role === 'admin' ? 'app admin' : 'app'}>

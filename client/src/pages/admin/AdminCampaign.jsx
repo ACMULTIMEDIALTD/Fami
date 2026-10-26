@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { Spinner } from '../../auth.jsx';
 import { CAMPAIGN_STATUS, APP_STATUS_ADMIN, TIERS, fmtK, fmtDate, fmtDateTime, fmtNum } from '../../labels.js';
-import { ErrorBox, Empty, TypeBadge, CampaignStatusChip, AppStatusChip, igUrl, ttUrl } from '../../components/ui.jsx';
+import { ErrorBox, Empty, TypeBadge, CampaignStatusChip, AppStatusChip, ConfirmButton, DownloadLink, igUrl, ttUrl } from '../../components/ui.jsx';
 
 const NEXT_STATUS = {
   draft: [['open', 'פתיחה להגשות'], ['cancelled', 'ביטול']],
@@ -50,13 +50,10 @@ export default function AdminCampaign() {
   }, status === 'selected' ? 'סומנו כנבחרות, נשלח להן מייל ✓' : 'עודכן ✓');
 
   const setStatus = (status) => {
-    const pending = counts.applied || 0;
-    if (CLOSING.includes(status) && pending && !confirm(`${pending} מועמדויות שעדיין ממתינות יסומנו כ״לא הפעם״. להמשיך?`)) return;
     run(() => api.patch(`/admin/campaigns/${id}`, { status }), `הסטטוס עודכן: ${CAMPAIGN_STATUS[status]}`);
   };
 
   const remove = () => {
-    if (!confirm('למחוק את הטיוטה?')) return;
     run(async () => { await api.del(`/admin/campaigns/${id}`); nav('/admin/campaigns'); });
   };
 
@@ -98,13 +95,15 @@ export default function AdminCampaign() {
 
       <div className="actions-bar">
         {c.status !== 'draft' && <button className="btn whatsapp sm" onClick={copyWhatsapp}>העתקת הודעת ווטסאפ</button>}
-        <a className="btn ghost sm" href={`/api/v1/admin/campaigns/${id}/export.csv`}>ייצוא נבחרות (CSV)</a>
+        <DownloadLink className="btn ghost sm" href={`/api/v1/admin/campaigns/${id}/export.csv`}>ייצוא נבחרות (CSV)</DownloadLink>
         <Link className="btn ghost sm" to={`/admin/campaigns/${id}/edit`}>עריכה</Link>
         <Link className="btn ghost sm" to={`/c/${c.slug}`}>תצוגה כמו יוצרת</Link>
         {NEXT_STATUS[c.status].map(([s, label]) => (
-          <button key={s} className={`btn sm ${s === 'cancelled' ? 'danger' : s === 'open' ? 'primary' : 'outline'}`} disabled={busy} onClick={() => setStatus(s)}>{label}</button>
+          <ConfirmButton key={s} className={`btn sm ${s === 'cancelled' ? 'danger' : s === 'open' ? 'primary' : 'outline'}`} disabled={busy}
+            ask={CLOSING.includes(s) && counts.applied ? `${counts.applied} מועמדויות ממתינות יסומנו כ״לא הפעם״. להמשיך?` : null}
+            onConfirm={() => setStatus(s)}>{label}</ConfirmButton>
         ))}
-        {c.status === 'draft' && <button className="btn sm danger" disabled={busy} onClick={remove}>מחיקה</button>}
+        {c.status === 'draft' && <ConfirmButton className="btn sm danger" disabled={busy} ask="למחוק את הטיוטה?" onConfirm={remove}>מחיקה</ConfirmButton>}
       </div>
 
       {waText && (

@@ -8,7 +8,15 @@ export class ApiError extends Error {
   }
 }
 
+import { DEMO } from './demo/flag.js';
+
 async function request(method, path, body) {
+  if (DEMO) {
+    const { mockRequest } = await import('./demo/mockApi.js');
+    const r = await mockRequest(method, path, body);
+    if (!r.ok) throw new ApiError(r.status, r.data);
+    return r.data;
+  }
   let res;
   try {
     res = await fetch(`/api/v1${path}`, {

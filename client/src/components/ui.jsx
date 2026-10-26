@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { DEMO } from '../demo/flag.js';
 import { TYPE_LABELS, APP_STATUS, APP_STATUS_ADMIN, CAMPAIGN_STATUS, USER_STATUS } from '../labels.js';
 
 export function Field({ label, error, hint, children, required }) {
@@ -37,5 +39,31 @@ export function Toggle({ checked, onChange, label }) {
       <span className="toggle-ui" aria-hidden="true" />
       <span>{label}</span>
     </label>
+  );
+}
+
+/** Two-step button: replaces window.confirm(), which embedded viewers block. */
+export function ConfirmButton({ ask, onConfirm, className = 'btn ghost sm', disabled, children }) {
+  const [asking, setAsking] = useState(false);
+  if (!ask) return <button className={className} disabled={disabled} onClick={onConfirm}>{children}</button>;
+  if (!asking) return <button className={className} disabled={disabled} onClick={() => setAsking(true)}>{children}</button>;
+  return (
+    <span className="confirm-inline" role="group">
+      <span>{ask}</span>
+      <button className="btn sm primary" disabled={disabled} onClick={() => { setAsking(false); onConfirm(); }}>כן</button>
+      <button className="btn sm ghost" onClick={() => setAsking(false)}>לא</button>
+    </span>
+  );
+}
+
+/** CSV download link. The demo build has no server to download from, so it explains instead. */
+export function DownloadLink({ href, className, children }) {
+  const [note, setNote] = useState(false);
+  if (!DEMO) return <a className={className} href={href}>{children}</a>;
+  return (
+    <>
+      <button type="button" className={className} onClick={() => setNote(true)}>{children}</button>
+      {note && <span className="small muted">בגרסת ההדגמה אין הורדת קבצים. באתר האמיתי יורד קובץ שנפתח באקסל.</span>}
+    </>
   );
 }

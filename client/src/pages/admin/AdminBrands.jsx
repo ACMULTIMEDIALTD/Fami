@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api.js';
 import { Spinner } from '../../auth.jsx';
 import { fmtDate } from '../../labels.js';
-import { Field, ErrorBox, Empty } from '../../components/ui.jsx';
+import { Field, ErrorBox, Empty, ConfirmButton } from '../../components/ui.jsx';
 
 const EMPTY = { name: '', contact_name: '', contact_phone: '', contact_email: '', agreement_signed_at: '', notes: '' };
 
@@ -53,7 +53,6 @@ export default function AdminBrands() {
   useEffect(() => { load(); }, []);
 
   const remove = async (b) => {
-    if (!confirm(`למחוק את ${b.name}?`)) return;
     try { await api.del(`/admin/brands/${b.id}`); await load(); } catch (e) { setError(e); }
   };
 
@@ -80,7 +79,7 @@ export default function AdminBrands() {
                 </span>
               </span>
               <button className="btn ghost sm" onClick={() => setEditing(b)}>עריכה</button>
-              {!b.campaign_count && <button className="btn ghost sm" onClick={() => remove(b)}>מחיקה</button>}
+              {!b.campaign_count && <ConfirmButton ask={`למחוק את ${b.name}?`} onConfirm={() => remove(b)}>מחיקה</ConfirmButton>}
             </li>
           ))}
         </ul>

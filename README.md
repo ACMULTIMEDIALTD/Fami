@@ -7,6 +7,13 @@ server/   Node + Express + PostgreSQL  → Render
 client/   React + Vite (RTL, mobile-first) → Vercel
 ```
 
+## Demo (no server)
+
+`cd client && npm run build:demo` builds a self-contained demo into `client/dist-demo/`. It is the real UI with a simulated API running in the browser (`client/src/demo/`), uses invented sample data and has a bar for switching between Noa's view and a creator's view. Any static host can serve it.
+The `Demo → GitHub Pages` workflow publishes it to https://acmultimedialtd.github.io/Fami/ on every push to `main`. One-time setup: Settings → Pages → Source: **GitHub Actions**.
+`node scripts/demo-single-file.mjs out.html` (run from `client/`) inlines the demo into a single HTML file.
+The production build (`npm run build`) contains none of the demo code.
+
 ## Local development
 
 Requires Node 22.9+ and PostgreSQL 14+.

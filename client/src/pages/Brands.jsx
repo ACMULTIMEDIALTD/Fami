@@ -1,3 +1,4 @@
+import logoUrl from '../assets/logo.jpg';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
@@ -23,7 +24,7 @@ export default function Brands() {
   return (
     <div className="landing narrow">
       <div className="landing-top"><Link to="/" className="linklike">→ חזרה</Link></div>
-      <img src="/logo-512.jpg" alt="" className="hero-logo sm" width="120" height="120" />
+      <img src={logoUrl} alt="" className="hero-logo sm" width="120" height="120" />
       <h1>עבודה עם יוצרות הקהילה</h1>
       <p className="lead">ספרו לי על המותג ועל מה שאתם מחפשים, ואחזור אליכם באופן אישי.</p>
       {state.done ? (

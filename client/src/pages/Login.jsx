@@ -1,3 +1,4 @@
+import { DEMO } from '../demo/flag.js';
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
@@ -26,7 +27,11 @@ export default function Login() {
     setError(null);
     try {
       if (mode === 'magic') {
-        await api.post('/auth/login', { email, next });
+        const r = await api.post('/auth/login', { email, next });
+        if (r.demo_logged_in) {
+          await refresh();
+          return;
+        }
         setSent(true);
       } else {
         await api.post('/auth/login', { email, password });
@@ -54,6 +59,7 @@ export default function Login() {
   return (
     <div className="narrow">
       <h1 className="page-title">כניסה לקהילה</h1>
+      {DEMO && <p className="demo-hint">בהדגמה אין מיילים: מספיק להקליד מייל ולהיכנס, או להשתמש בכפתורים בפס העליון.</p>}
       <form className="card form" onSubmit={submit}>
         <Field label="מייל">
           <input type="email" dir="ltr" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" autoFocus />

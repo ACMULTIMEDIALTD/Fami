@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth, Spinner } from '../auth.jsx';
 import { PLATFORMS, REJECTED_SOFT, fmtNum, fmtDate, fmtDateTime } from '../labels.js';
-import { ErrorBox, TypeBadge, AppStatusChip, CampaignStatusChip } from '../components/ui.jsx';
+import { ErrorBox, TypeBadge, AppStatusChip, CampaignStatusChip, ConfirmButton } from '../components/ui.jsx';
 import { DeadlineText } from '../components/CampaignCard.jsx';
 
 function ApplyBox({ slug, onApplied }) {
@@ -50,7 +50,6 @@ export default function Campaign() {
   useEffect(() => { load(); }, [slug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const withdraw = async () => {
-    if (!confirm('לבטל את המועמדות?')) return;
     setBusy(true);
     try { await api.del(`/campaigns/${slug}/apply`); await load(); } catch (e) { setError(e); } finally { setBusy(false); }
   };
@@ -115,7 +114,7 @@ export default function Campaign() {
               {app.status === 'applied' && (
                 <>
                   <p>קיבלנו! נועה עוברת על המועמדויות ותעדכן את מי שנבחרו.</p>
-                  <button className="btn ghost sm" disabled={busy} onClick={withdraw}>ביטול מועמדות</button>
+                  <ConfirmButton ask="לבטל את המועמדות?" disabled={busy} onConfirm={withdraw}>ביטול מועמדות</ConfirmButton>
                 </>
               )}
               {app.status === 'rejected' && <p>{REJECTED_SOFT}</p>}

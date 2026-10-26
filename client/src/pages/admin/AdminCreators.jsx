@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api, qs } from '../../api.js';
 import { Spinner } from '../../auth.jsx';
 import { USER_STATUS, TIERS, fmtK } from '../../labels.js';
-import { ErrorBox, Empty, UserStatusChip, igUrl } from '../../components/ui.jsx';
+import { ErrorBox, Empty, UserStatusChip, DownloadLink, igUrl } from '../../components/ui.jsx';
 import CreatorDrawer from './CreatorDrawer.jsx';
 
 const FILTER_KEYS = ['q', 'niche', 'region', 'min_followers', 'tier', 'status', 'open_to', 'sort'];
@@ -42,7 +42,7 @@ export default function AdminCreators() {
     <div className="admin-creators">
       <div className="page-head">
         <h1 className="page-title">יוצרות {rows && <span className="muted">({rows.length})</span>}</h1>
-        <a className="btn ghost" href={`/api/v1/admin/creators/export.csv${query}`}>ייצוא CSV</a>
+        <DownloadLink className="btn ghost" href={`/api/v1/admin/creators/export.csv${query}`}>ייצוא CSV</DownloadLink>
       </div>
 
       <div className="toolbar">

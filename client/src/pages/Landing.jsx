@@ -1,3 +1,4 @@
+import logoUrl from '../assets/logo.jpg';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 
@@ -11,7 +12,7 @@ export default function Landing() {
         {me ? <Link to={home} className="linklike">לאזור האישי ←</Link> : <Link to="/login" className="linklike">כניסה לחברות</Link>}
       </div>
       <section className="hero">
-        <img src="/logo-512.jpg" alt="The Creator Club by Noa Avital" className="hero-logo" width="220" height="220" />
+        <img src={logoUrl} alt="The Creator Club by Noa Avital" className="hero-logo" width="220" height="220" />
         <h1>קהילת יוצרות התוכן של נועה אביטל</h1>
         <p className="lead">
           קהילה סגורה ונבחרת של יוצרות תוכן ישראליות.

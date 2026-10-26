@@ -17,9 +17,9 @@ export function AuthProvider({ children }) {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const logout = async () => {
+  const logout = async ({ keepState = false } = {}) => {
     await api.post('/auth/logout').catch(() => {});
-    setMe(null);
+    if (!keepState) setMe(null);
   };
 
   return <AuthContext.Provider value={{ me, refresh, logout, setMe }}>{children}</AuthContext.Provider>;

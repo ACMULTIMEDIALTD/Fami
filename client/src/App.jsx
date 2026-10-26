@@ -1,4 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { DEMO } from './demo/flag.js';
+import DemoBar from './demo/DemoBar.jsx';
 import { RequireAuth } from './auth.jsx';
 import Layout from './components/Layout.jsx';
 import Landing from './pages/Landing.jsx';
@@ -21,6 +23,8 @@ const admin = (el) => <RequireAuth role="admin">{el}</RequireAuth>;
 
 export default function App() {
   return (
+    <>
+    {DEMO && <DemoBar />}
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/brands" element={<Brands />} />
@@ -41,5 +45,6 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
