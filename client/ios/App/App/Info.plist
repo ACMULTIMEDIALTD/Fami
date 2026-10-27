@@ -10,6 +10,9 @@
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>he</string>
+	<!-- Only standard HTTPS: no export-compliance questions on each TestFlight upload -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>CFBundleDisplayName</key>
         <string>Creator Club</string>
 	<key>CFBundleExecutable</key>
