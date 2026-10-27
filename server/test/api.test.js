@@ -670,11 +670,14 @@ test('account deletion: removes her data, keeps invoices in the payment archive,
   }).expect(200);
 
   // Needs the typed confirmation; admins can't use it
-  await cr.agent.delete('/api/v1/me/account').send({ confirm: 'כן' }).expect(400);
-  await admin.delete('/api/v1/me/account').send({ confirm: 'מחיקה' }).expect(403);
+  await cr.agent.delete('/api/v1/me/account').send({ confirm: 'כן', acknowledge_terms: true }).expect(400);
+  // …and the acknowledgement that the terms still apply
+  const ack = await cr.agent.delete('/api/v1/me/account').send({ confirm: 'מחיקה' }).expect(400);
+  assert.ok(ack.body.fields.acknowledge_terms);
+  await admin.delete('/api/v1/me/account').send({ confirm: 'מחיקה', acknowledge_terms: true }).expect(403);
 
   outbox.length = 0;
-  await cr.agent.delete('/api/v1/me/account').send({ confirm: 'מחיקה' }).expect(200);
+  await cr.agent.delete('/api/v1/me/account').send({ confirm: 'מחיקה', acknowledge_terms: true }).expect(200);
   await cr.agent.get('/api/v1/auth/me').expect(401); // signed out
   assert.equal(outbox.length, 1);
   assert.match(outbox[0].subject, /מחקה את החשבון/);
@@ -687,6 +690,12 @@ test('account deletion: removes her data, keeps invoices in the payment archive,
     [cr.id, appId],
   );
   assert.deepEqual(left.rows[0], { users: 0, creators: 0, apps: 0, events: 0 });
+  // The record of the accepted terms stays (non-circumvention / confidentiality outlive the account)
+  const rec = (await pool.query('SELECT * FROM deleted_accounts WHERE email = $1', [cr.email])).rows[0];
+  assert.equal(rec.terms_version, '2026-10-v1');
+  assert.ok(rec.terms_accepted_at);
+  assert.equal(rec.full_name, 'יוצרת בדיקה');
+  assert.ok(outbox[0].text.includes('מחקה את החשבון'));
   // Can sign up again with the same email
   await agent().post('/api/v1/auth/signup').send({ email: cr.email, phone: '0547770000', password: 'password123' }).expect(201);
 

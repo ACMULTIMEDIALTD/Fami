@@ -187,15 +187,25 @@ router.get('/applications', async (req, res) => {
 // ---------- account deletion (from the app or the site) ----------
 
 /**
- * Deletes the account and all her data. Invoices are kept in payment_archive (tax records);
+ * Deletes the account and all her data. Kept: invoices in payment_archive (tax records) and the
+ * record of the terms she accepted (deleted_accounts), since §3 and §5 outlive the membership.
  * Noa is told, including whether a payment is still open.
  */
 router.delete('/account', async (req, res) => {
-  parse(z.object({ confirm: z.literal('מחיקה', { message: 'יש להקליד "מחיקה" לאישור' }) }), req.body);
+  parse(z.object({
+    confirm: z.literal('מחיקה', { message: 'יש להקליד "מחיקה" לאישור' }),
+    acknowledge_terms: z.literal(true, { message: 'יש לאשר שקראת את ההסבר על התנאים' }),
+  }), req.body);
   const result = await tx(async (db) => {
     const { rows: [who] } = await db.query(
-      `SELECT u.email, c.full_name FROM users u LEFT JOIN creators c ON c.user_id = u.id WHERE u.id = $1 FOR UPDATE OF u`,
+      `SELECT u.email, u.phone, u.created_at, c.full_name, c.instagram_handle, c.terms_version, c.terms_accepted_at, c.terms_ip
+       FROM users u LEFT JOIN creators c ON c.user_id = u.id WHERE u.id = $1 FOR UPDATE OF u`,
       [req.user.id],
+    );
+    await db.query(
+      `INSERT INTO deleted_accounts (full_name, email, phone, instagram_handle, joined_at, terms_version, terms_accepted_at, terms_ip, deleted_ip)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [who.full_name, who.email, who.phone, who.instagram_handle, who.created_at, who.terms_version, who.terms_accepted_at, who.terms_ip, req.ip],
     );
     const { rows: archived } = await db.query(
       `INSERT INTO payment_archive (creator_name, creator_email, campaign_title, doc_type, amount_ils,
