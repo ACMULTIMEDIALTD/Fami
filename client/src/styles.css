@@ -382,3 +382,5 @@ a.list-row:hover { border-color: var(--wine); }
 .install-hint .row-inline { margin-top: 6px; }
 .share-box { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); margin-top: 12px; }
 .share-box code { direction: ltr; font-size: .85rem; background: var(--cream); padding: 4px 8px; border-radius: 6px; }
+
+.creator-code { font-size: .85rem; color: var(--muted); margin: -4px 0 6px; }

@@ -58,6 +58,7 @@ export default function CreatorDrawer({ id, meta, onClose, onChanged }) {
         {!data ? <Spinner /> : (
           <>
             <h2>{p?.full_name || u.email}</h2>
+            <div className="creator-code" title="הקוד שמופיע בקובץ ללקוחות">קוד: <bdi dir="ltr">C-{u.id.replace(/-/g, '').slice(0, 6).toUpperCase()}</bdi></div>
             <div className="muted small">
               <a href={`mailto:${u.email}`} dir="ltr">{u.email}</a> · <a href={`https://wa.me/972${(u.phone || '').replace(/^0/, '')}`} target="_blank" rel="noreferrer" dir="ltr">{u.phone}</a>
               <br />נרשמה {fmtDate(u.created_at)} · כניסה אחרונה {fmtDateTime(u.last_login_at)}

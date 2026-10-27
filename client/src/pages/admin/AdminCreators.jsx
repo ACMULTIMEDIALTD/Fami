@@ -42,11 +42,14 @@ export default function AdminCreators() {
     <div className="admin-creators">
       <div className="page-head">
         <h1 className="page-title">יוצרות {rows && <span className="muted">({rows.length})</span>}</h1>
-        <DownloadLink className="btn ghost" href={`/api/v1/admin/creators/export.csv${query}`}>ייצוא CSV</DownloadLink>
+        <div className="row-inline">
+          <DownloadLink className="btn ghost sm" href={`/api/v1/admin/creators/export.csv${query}`}>קובץ לנועה (עם שמות)</DownloadLink>
+          <DownloadLink className="btn ghost sm" href={`/api/v1/admin/creators/export-brands.csv${query}`}>קובץ ללקוחות (בלי שמות)</DownloadLink>
+        </div>
       </div>
 
       <div className="toolbar">
-        <input type="search" placeholder="חיפוש: שם, מייל, טלפון, @handle, עיר" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input type="search" placeholder="חיפוש: שם, מייל, טלפון, @handle, עיר או קוד C-…" value={q} onChange={(e) => setQ(e.target.value)} />
         <button className="btn ghost sm filters-toggle" onClick={() => setShowFilters(!showFilters)}>סינון{activeFilters ? ` (${activeFilters})` : ''}</button>
       </div>
 

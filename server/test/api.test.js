@@ -385,3 +385,28 @@ test('rates are gone from the profile, admin views and CSV', async () => {
   const csv = await admin.get('/api/v1/admin/creators/export.csv').expect(200);
   assert.ok(!csv.text.includes('תעריף'));
 });
+
+test('two exports: with names for Noa, anonymous for brands', async () => {
+  const a = await makeCreator({ admin, full_name: 'שירה אנונימית', instagram_handle: 'shira.anon', city: 'רעננה', instagram_followers: 77000, niches: [2], birth_year: 1995 });
+  await makeCreator({ activate: false, admin, full_name: 'ממתינה לאישור' });
+  const code = `C-${a.id.replace(/-/g, '').slice(0, 6).toUpperCase()}`;
+
+  const noa = await admin.get('/api/v1/admin/creators/export.csv').expect(200);
+  assert.match(noa.text, /שירה אנונימית/);
+  assert.ok(noa.text.includes(code));
+
+  const brands = await admin.get('/api/v1/admin/creators/export-brands.csv?niche=2').expect(200);
+  assert.ok(brands.text.includes(code));
+  assert.ok(brands.text.includes('77000'));
+  for (const secret of ['שירה אנונימית', 'shira.anon', 'רעננה', a.email, 'ממתינה לאישור', '@']) {
+    assert.ok(!brands.text.includes(secret), `brand file must not contain ${secret}`);
+  }
+  const header = brands.text.replace(/^\uFEFF/, '').split('\r\n')[0].split(',');
+  for (const col of ['שם', 'טלפון', 'מייל', 'עיר', 'אינסטגרם', 'טיקטוק', 'יוטיוב']) {
+    assert.ok(!header.includes(col), `brand file must not have a "${col}" column`);
+  }
+
+  // Noa can find the creator by the code a brand sends back
+  const found = await admin.get(`/api/v1/admin/creators?q=${code}`).expect(200);
+  assert.deepEqual(found.body.creators.map((x) => x.id), [a.id]);
+});
