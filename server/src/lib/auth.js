@@ -13,9 +13,19 @@ const cookieOpts = () => ({
   path: '/',
 });
 
-export function setSession(res, user) {
-  const token = jwt.sign({ sub: user.id }, config.jwtSecret, { expiresIn: Math.floor(MAX_AGE_MS / 1000) });
+const signToken = (user) => jwt.sign({ sub: user.id }, config.jwtSecret, { expiresIn: Math.floor(MAX_AGE_MS / 1000) });
+
+/** The iPhone/Android app sends this header. It keeps its session as a bearer token, not a cookie. */
+export const isApp = (req) => req.get('X-Client') === 'app';
+
+/**
+ * Starts a session. Browsers get an httpOnly cookie; the native app gets the token back
+ * (returned value, to put in the JSON response) because WebView cookies to another host are unreliable.
+ */
+export function setSession(req, res, user) {
+  const token = signToken(user);
   res.cookie(COOKIE, token, { ...cookieOpts(), maxAge: MAX_AGE_MS });
+  return isApp(req) ? token : undefined;
 }
 
 export function clearSession(res) {
@@ -23,11 +33,12 @@ export function clearSession(res) {
 }
 
 /**
- * Reads the session cookie and loads the user fresh from the DB on every request,
+ * Reads the session (bearer token from the app, else cookie) and loads the user fresh from the DB on every request,
  * so role/status changes (e.g. suspension) take effect immediately.
  */
 export async function loadUser(req, _res, next) {
-  const token = req.cookies?.[COOKIE];
+  const bearer = req.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];
+  const token = bearer || req.cookies?.[COOKIE];
   if (!token) return next();
   try {
     const { sub } = jwt.verify(token, config.jwtSecret);

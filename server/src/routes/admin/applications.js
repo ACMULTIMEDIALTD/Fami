@@ -4,6 +4,7 @@ import { tx } from '../../db.js';
 import { HttpError, notFound, parse } from '../../lib/http.js';
 import { logEvent } from '../../lib/events.js';
 import { mails } from '../../lib/mailer.js';
+import { sendPush } from '../../lib/push.js';
 
 const router = Router();
 const ADMIN_STATUSES = ['applied', 'selected', 'rejected', 'completed'];
@@ -15,7 +16,7 @@ const ADMIN_STATUSES = ['applied', 'selected', 'rejected', 'completed'];
 async function updateApplications(adminId, ids, { status, admin_note }) {
   return tx(async (db) => {
     const { rows: before } = await db.query(
-      `SELECT a.id, a.status, u.email, c.title, c.slug, c.id AS campaign_id
+      `SELECT a.id, a.status, u.id AS user_id, u.email, c.title, c.slug, c.id AS campaign_id
        FROM applications a JOIN users u ON u.id = a.creator_id JOIN campaigns c ON c.id = a.campaign_id
        WHERE a.id = ANY($1::uuid[]) FOR UPDATE OF a`,
       [ids],
@@ -41,6 +42,13 @@ async function updateApplications(adminId, ids, { status, admin_note }) {
   });
 }
 
+async function notifySelected(rows) {
+  await Promise.all(rows.map((r) => Promise.all([
+    mails.selected(r.email, r),
+    sendPush([r.user_id], { title: 'נבחרת! 🎉', body: `נבחרת לקמפיין "${r.title}". הבריף המלא מחכה לך.`, url: `/c/${r.slug}` }),
+  ])));
+}
+
 const one = z.object({
   status: z.enum(ADMIN_STATUSES).optional(),
   admin_note: z.string().max(2000).nullable().optional(),
@@ -51,7 +59,7 @@ router.patch('/:id', async (req, res) => {
   const data = parse(one, req.body);
   const { found, newlySelected } = await updateApplications(req.user.id, [req.params.id], data);
   if (!found) throw notFound('application_not_found');
-  await Promise.all(newlySelected.map((r) => mails.selected(r.email, r)));
+  await notifySelected(newlySelected);
   res.json({ ok: true, updated: found });
 });
 
@@ -64,7 +72,7 @@ router.post('/bulk', async (req, res) => {
   const { ids, status } = parse(bulk, req.body);
   const { found, newlySelected } = await updateApplications(req.user.id, ids, { status });
   if (!found) throw new HttpError(404, 'application_not_found');
-  await Promise.all(newlySelected.map((r) => mails.selected(r.email, r)));
+  await notifySelected(newlySelected);
   res.json({ ok: true, updated: found, newly_selected: newlySelected.length });
 });
 

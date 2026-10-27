@@ -9,6 +9,7 @@ export class ApiError extends Error {
 }
 
 import { DEMO } from './demo/flag.js';
+import { IS_NATIVE, API_BASE, getToken, setToken } from './native/platform.js';
 
 async function request(method, path, body) {
   if (DEMO) {
@@ -17,19 +18,28 @@ async function request(method, path, body) {
     if (!r.ok) throw new ApiError(r.status, r.data);
     return r.data;
   }
+  const headers = {};
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (IS_NATIVE) {
+    headers['X-Client'] = 'app';
+    const token = await getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
   let res;
   try {
-    res = await fetch(`/api/v1${path}`, {
+    res = await fetch(`${API_BASE}/api/v1${path}`, {
       method,
-      credentials: 'include',
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      credentials: IS_NATIVE ? 'omit' : 'include',
+      headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
     throw new ApiError(0, { message: 'אין חיבור לשרת. בדקי את האינטרנט ונסי שוב.' });
   }
   const data = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
+  if (IS_NATIVE && res.status === 401) await setToken(null); // expired session → sign in again
   if (!res.ok) throw new ApiError(res.status, data);
+  if (IS_NATIVE && data?.token) await setToken(data.token); // signup / login / magic link
   return data;
 }
 

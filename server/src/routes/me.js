@@ -7,6 +7,7 @@ import { requireRole } from '../lib/auth.js';
 import { getCreatorProfile } from '../lib/creators.js';
 import { logEvent } from '../lib/events.js';
 import { mails } from '../lib/mailer.js';
+import { registerDevice } from '../lib/push.js';
 
 const router = Router();
 router.use(requireRole('creator'));
@@ -140,6 +141,16 @@ router.post('/terms', async (req, res) => {
   if (!row) throw new HttpError(400, 'no_profile', 'יש להשלים את הפרופיל');
   await logEvent(req.user.id, 'terms_accepted', { version, ip: req.ip });
   res.json(row);
+});
+
+/** The app registers its push token after the user allows notifications. */
+router.post('/devices', async (req, res) => {
+  const { token, platform } = parse(z.object({
+    token: z.string().min(20).max(4096),
+    platform: z.enum(['ios', 'android']),
+  }), req.body);
+  await registerDevice(req.user.id, token, platform);
+  res.json({ ok: true });
 });
 
 router.get('/applications', async (req, res) => {

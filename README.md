@@ -7,6 +7,10 @@ server/   Node + Express + PostgreSQL  → Render
 client/   React + Vite (RTL, mobile-first) → Vercel
 ```
 
+## iPhone & Android app
+
+The same React app ships as a Capacitor app (`client/ios`, `client/android`) with push notifications and links that open in the app, and as an installable PWA. Setup, store checklist and keys are in [MOBILE.md](MOBILE.md).
+
 ## Demo (no server)
 
 `cd client && npm run build:demo` builds a self-contained demo into `client/dist-demo/`. It is the real UI with a simulated API running in the browser (`client/src/demo/`), uses invented sample data and has a bar for switching between Noa's view and a creator's view. Any static host can serve it.

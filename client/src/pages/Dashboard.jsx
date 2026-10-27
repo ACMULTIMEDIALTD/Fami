@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { useAuth, Spinner } from '../auth.jsx';
 import { ErrorBox, Empty, AppStatusChip, TypeBadge } from '../components/ui.jsx';
 import CampaignCard from '../components/CampaignCard.jsx';
+import InstallHint from '../components/InstallHint.jsx';
 
 function StatusBanner({ me }) {
   const { status } = me.user;
@@ -45,6 +46,7 @@ export default function Dashboard() {
 
   return (
     <div>
+      <InstallHint />
       <StatusBanner me={me} />
       <ErrorBox error={error} />
       {!board ? <Spinner /> : (

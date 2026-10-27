@@ -6,6 +6,7 @@ import { getCreatorProfile } from '../../lib/creators.js';
 import { toCsv, sendCsv } from '../../lib/csv.js';
 import { logEvent } from '../../lib/events.js';
 import { mails } from '../../lib/mailer.js';
+import { sendPush } from '../../lib/push.js';
 
 const router = Router();
 
@@ -186,7 +187,10 @@ router.patch('/:id', async (req, res) => {
     return { user, approved: data.status === 'active' && user.status === 'pending' };
   });
 
-  if (result.approved) await mails.approved(result.user.email);
+  if (result.approved) {
+    await mails.approved(result.user.email);
+    await sendPush([result.user.id], { title: 'ברוכה הבאה לקהילה! 🎉', body: 'החברות שלך אושרה. הקמפיינים הפתוחים מחכים לך.', url: '/dashboard' });
+  }
   const fresh = await one(
     `SELECT u.status, c.tier, c.admin_notes, c.internal_rating
      FROM users u LEFT JOIN creators c ON c.user_id = u.id WHERE u.id = $1`,

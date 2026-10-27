@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { DEMO } from '../demo/flag.js';
+import { IS_NATIVE } from '../native/platform.js';
 import { TYPE_LABELS, APP_STATUS, APP_STATUS_ADMIN, CAMPAIGN_STATUS, USER_STATUS } from '../labels.js';
 
 export function Field({ label, error, hint, children, required }) {
@@ -59,11 +60,15 @@ export function ConfirmButton({ ask, onConfirm, className = 'btn ghost sm', disa
 /** CSV download link. The demo build has no server to download from, so it explains instead. */
 export function DownloadLink({ href, className, children }) {
   const [note, setNote] = useState(false);
-  if (!DEMO) return <a className={className} href={href}>{children}</a>;
+  if (!DEMO && !IS_NATIVE) return <a className={className} href={href}>{children}</a>;
   return (
     <>
       <button type="button" className={className} onClick={() => setNote(true)}>{children}</button>
-      {note && <span className="small muted">בגרסת ההדגמה אין הורדת קבצים. באתר האמיתי יורד קובץ שנפתח באקסל.</span>}
+      {note && (
+        <span className="small muted">
+          {DEMO ? 'בגרסת ההדגמה אין הורדת קבצים. באתר האמיתי יורד קובץ שנפתח באקסל.' : 'ייצוא קבצים זמין באתר, מהמחשב.'}
+        </span>
+      )}
     </>
   );
 }

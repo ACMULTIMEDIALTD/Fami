@@ -11,8 +11,9 @@ const { migrate } = await import('../src/migrate.js');
 const { seed } = await import('../src/seed.js');
 const { createApp } = await import('../src/app.js');
 const { outbox } = await import('../src/lib/mailer.js');
+const { pushOutbox } = await import('../src/lib/push.js');
 
-export { pool, outbox };
+export { pool, outbox, pushOutbox };
 export const app = createApp();
 
 export async function resetDb() {
@@ -20,6 +21,7 @@ export async function resetDb() {
   await migrate({ log: () => {} });
   await seed({ log: () => {} });
   outbox.length = 0;
+  pushOutbox.length = 0;
 }
 
 export const agent = () => request.agent(app);

@@ -1,6 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { pool, outbox, agent, resetDb, loginAdmin, makeCreator, campaignBody, profile } from './helpers.js';
+import { pool, outbox, pushOutbox, app, agent, resetDb, loginAdmin, makeCreator, campaignBody, profile } from './helpers.js';
+import request from 'supertest';
 
 let admin;
 before(async () => { await resetDb(); admin = await loginAdmin(); });
@@ -56,15 +57,21 @@ test('magic link login', async () => {
   assert.equal(outbox.length, 0);
   await agent().post('/api/v1/auth/login').send({ email, next: '/c/abc' }).expect(200);
   const link = outbox.at(-1).text.match(/http:\/\/app\.test(\S+)/)[1];
-  assert.match(link, /\?next=%2Fc%2Fabc$/);
+  assert.match(link, /^\/m\/[\w-]+\?next=%2Fc%2Fabc$/);
+  const token = link.split('/')[2].split('?')[0];
 
   const a = agent();
-  const r = await a.get(link).expect(302);
-  assert.equal(r.headers.location, 'http://app.test/c/abc');
+  await a.post('/api/v1/auth/magic').send({ token }).expect(200);
   await a.get('/api/v1/auth/me').expect(200);
   // single use
-  const again = await agent().get(link).expect(302);
-  assert.match(again.headers.location, /link_expired/);
+  const again = await agent().post('/api/v1/auth/magic').send({ token }).expect(410);
+  assert.equal(again.body.error, 'link_expired');
+
+  // legacy GET link still redirects
+  await agent().post('/api/v1/auth/login').send({ email }).expect(200);
+  const t2 = outbox.at(-1).text.match(/\/m\/([\w-]+)/)[1];
+  const r = await agent().get(`/api/v1/auth/magic/${t2}`).expect(302);
+  assert.equal(r.headers.location, 'http://app.test/dashboard');
 });
 
 test('campaign flow: eligibility, visibility, select, close', async () => {
@@ -237,4 +244,62 @@ test('brand inquiry emails Noa; honeypot is silently dropped', async () => {
   assert.equal(outbox.length, 0);
   await agent().post('/api/v1/public/brand-inquiry').send(body).expect(200);
   assert.equal(outbox[0].to, 'admin@test.local');
+});
+
+test('native app: bearer token auth, push devices, push triggers', async () => {
+  const { email, id } = await makeCreator({ admin, instagram_followers: 9000, niches: [2] });
+  const other = await makeCreator({ admin, instagram_followers: 500 });
+
+  // Browser login → no token in the body; app login → token
+  const web = await agent().post('/api/v1/auth/login').send({ email, password: 'password123' }).expect(200);
+  assert.equal(web.body.token, undefined);
+  const login = await request(app).post('/api/v1/auth/login').set('X-Client', 'app')
+    .send({ email, password: 'password123' }).expect(200);
+  const token = login.body.token;
+  assert.ok(token);
+
+  const bearer = (m, url) => request(app)[m](url).set('Authorization', `Bearer ${token}`).set('X-Client', 'app');
+  assert.equal((await bearer('get', '/api/v1/auth/me').expect(200)).body.user.id, id);
+  await request(app).get('/api/v1/auth/me').set('Authorization', 'Bearer nope').expect(401);
+
+  // CORS allows the Capacitor WebView origins
+  const pre = await request(app).options('/api/v1/auth/me').set('Origin', 'capacitor://localhost').set('Access-Control-Request-Method', 'GET');
+  assert.equal(pre.headers['access-control-allow-origin'], 'capacitor://localhost');
+
+  // Register both creators' phones
+  await bearer('post', '/api/v1/me/devices').send({ token: 'fcm-token-'.padEnd(40, 'a'), platform: 'ios' }).expect(200);
+  await bearer('post', '/api/v1/me/devices').send({ token: 'x', platform: 'ios' }).expect(400);
+  const otherLogin = await request(app).post('/api/v1/auth/login').set('X-Client', 'app').send({ email: other.email, password: 'password123' });
+  await request(app).post('/api/v1/me/devices').set('Authorization', `Bearer ${otherLogin.body.token}`)
+    .send({ token: 'fcm-other-'.padEnd(40, 'b'), platform: 'android' }).expect(200);
+
+  // Opening a campaign pushes only to creators who are eligible
+  pushOutbox.length = 0;
+  const c = (await admin.post('/api/v1/admin/campaigns').send(campaignBody({ min_followers: 5000, required_niche_ids: [2] })).expect(201)).body.campaign;
+  assert.equal(pushOutbox.length, 1);
+  assert.deepEqual(pushOutbox[0].userIds, [id]);
+  assert.equal(pushOutbox[0].url, `/c/${c.slug}`);
+
+  // Draft → open via PATCH also pushes; editing an open campaign does not
+  pushOutbox.length = 0;
+  const d = (await admin.post('/api/v1/admin/campaigns').send(campaignBody({ status: undefined, min_followers: 0 })).expect(201)).body.campaign;
+  assert.equal(pushOutbox.length, 0);
+  await admin.patch(`/api/v1/admin/campaigns/${d.id}`).send({ status: 'open' }).expect(200);
+  assert.equal(pushOutbox.length, 1);
+  assert.equal(pushOutbox[0].userIds.length, 2);
+  await admin.patch(`/api/v1/admin/campaigns/${d.id}`).send({ title: 'שם חדש' }).expect(200);
+  assert.equal(pushOutbox.length, 1);
+
+  // Selected → push to that creator
+  await bearer('post', `/api/v1/campaigns/${c.slug}/apply`).send({}).expect(201);
+  const apps = await admin.get(`/api/v1/admin/campaigns/${c.id}/applications`).expect(200);
+  pushOutbox.length = 0;
+  await admin.post('/api/v1/admin/applications/bulk').send({ ids: [apps.body.applications[0].id], status: 'selected' }).expect(200);
+  assert.equal(pushOutbox.length, 1);
+  assert.match(pushOutbox[0].title, /נבחרת/);
+
+  // Logout with the push token unregisters the phone
+  await bearer('post', '/api/v1/auth/logout').send({ push_token: 'fcm-token-'.padEnd(40, 'a') }).expect(200);
+  const { rows } = await pool.query('SELECT count(*)::int AS n FROM push_devices WHERE user_id = $1', [id]);
+  assert.equal(rows[0].n, 0);
 });

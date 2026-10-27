@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { DEMO } from './demo/flag.js';
 import DemoBar from './demo/DemoBar.jsx';
+import NativeBridge from './native/NativeBridge.jsx';
+import MagicLink from './pages/MagicLink.jsx';
 import { RequireAuth } from './auth.jsx';
 import Layout from './components/Layout.jsx';
 import Landing from './pages/Landing.jsx';
@@ -25,12 +27,14 @@ export default function App() {
   return (
     <>
     {DEMO && <DemoBar />}
+    <NativeBridge />
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/brands" element={<Brands />} />
       <Route element={<Layout />}>
         <Route path="/join" element={<Join />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/m/:token" element={<MagicLink />} />
         <Route path="/dashboard" element={creator(<Dashboard />)} />
         <Route path="/c/:slug" element={<RequireAuth><Campaign /></RequireAuth>} />
         <Route path="/me" element={creator(<EditProfile />)} />

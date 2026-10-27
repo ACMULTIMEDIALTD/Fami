@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { api } from './api.js';
+import { setToken } from './native/platform.js';
+import { currentPushToken } from './native/push.js';
 
 const AuthContext = createContext(null);
 
@@ -18,7 +20,9 @@ export function AuthProvider({ children }) {
   useEffect(() => { refresh(); }, [refresh]);
 
   const logout = async ({ keepState = false } = {}) => {
-    await api.post('/auth/logout').catch(() => {});
+    // push_token: stop sending this phone notifications for the account that is signing out
+    await api.post('/auth/logout', { push_token: currentPushToken() }).catch(() => {});
+    await setToken(null);
     if (!keepState) setMe(null);
   };
 

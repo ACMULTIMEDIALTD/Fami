@@ -7,6 +7,7 @@ import { toCsv, sendCsv } from '../../lib/csv.js';
 import { whatsappText } from '../../lib/whatsapp.js';
 import { logEvent } from '../../lib/events.js';
 import { CREATOR_CSV_COLUMNS } from './creators.js';
+import { notifyCampaignOpened } from '../../lib/push.js';
 
 const router = Router();
 const uuid = z.string().uuid();
@@ -80,6 +81,7 @@ router.post('/', async (req, res) => {
         [...values, status, req.user.id],
       );
       await logEvent(req.user.id, 'campaign_created', { campaign_id: campaign.id });
+      if (campaign.status === 'open') await notifyCampaignOpened(campaign);
       return res.status(201).json({ campaign });
     } catch (err) {
       if (err.code === '23505' && err.constraint?.includes('slug')) {
@@ -139,14 +141,16 @@ router.patch('/:id', async (req, res) => {
       await logEvent(req.user.id, 'campaign_status_changed',
         { campaign_id: cur.id, from: cur.status, to: d.status, auto_rejected: autoRejected }, db);
     }
-    return { autoRejected };
+    return { autoRejected, opened: d.status === 'open' && cur.status !== 'open' };
   }).catch((err) => {
     if (err.code === '23505') throw new HttpError(409, 'slug_taken', 'הכתובת הזו כבר בשימוש', { fields: { slug: 'הכתובת הזו כבר בשימוש' } });
     if (err.code === '23503') throw new HttpError(400, 'brand_not_found', 'מותג לא קיים');
     throw err;
   });
 
-  res.json({ campaign: await getCampaign(req.params.id), auto_rejected: result.autoRejected });
+  const campaign = await getCampaign(req.params.id);
+  if (result.opened) await notifyCampaignOpened(campaign);
+  res.json({ campaign, auto_rejected: result.autoRejected });
 });
 
 router.delete('/:id', async (req, res) => {
