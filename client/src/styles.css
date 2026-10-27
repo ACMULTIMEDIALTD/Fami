@@ -384,3 +384,8 @@ a.list-row:hover { border-color: var(--wine); }
 .share-box code { direction: ltr; font-size: .85rem; background: var(--cream); padding: 4px 8px; border-radius: 6px; }
 
 .creator-code { font-size: .85rem; color: var(--muted); margin: -4px 0 6px; }
+
+.terms-box { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.terms-read-btn { align-self: stretch; }
+.check.locked { opacity: .65; cursor: pointer; }
+.check.locked input { pointer-events: none; }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { BILLING, GENDER, SECTORS } from '../labels.js';
 import { Field, ErrorBox, Toggle } from './ui.jsx';
-import TermsDialog from './TermsDialog.jsx';
+import TermsAcceptance from './TermsAcceptance.jsx';
 
 export const STEPS = ['פרטים', 'רשתות', 'קהל ותחומים', 'שיתופי פעולה ותנאים'];
 
@@ -49,7 +49,6 @@ export default function ProfileWizard({ initial, requireTerms, terms, submitLabe
   const [f, setF] = useState(() => fromProfile(initial));
   const [step, setStep] = useState(0);
   const [termsOk, setTermsOk] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
   const [errors, setErrors] = useState({});
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -72,7 +71,7 @@ export default function ProfileWizard({ initial, requireTerms, terms, submitLabe
   const submit = async (ev) => {
     ev.preventDefault();
     if (step < STEPS.length - 1) return next();
-    if (requireTerms && !termsOk) { setErrors({ terms_accept: 'יש לאשר את תנאי הקהילה' }); return; }
+    if (requireTerms && !termsOk) { setErrors({ terms_accept: 'יש לקרוא את התנאים עד הסוף ולאשר אותם' }); return; }
     setBusy(true);
     setError(null);
     try {
@@ -80,7 +79,7 @@ export default function ProfileWizard({ initial, requireTerms, terms, submitLabe
         ...f,
         region_id: f.region_id ? Number(f.region_id) : null,
         links: f.links.filter((l) => l.url.trim()),
-        ...(requireTerms ? { terms_accept: { version: terms.version } } : {}),
+        ...(requireTerms ? { terms_accept: { version: terms.version, read_to_end: true } } : {}),
       };
       const res = await api.put('/me/profile', body);
       await onSaved(res.profile);
@@ -215,19 +214,8 @@ export default function ProfileWizard({ initial, requireTerms, terms, submitLabe
               </select>
             </Field>
             {requireTerms && (
-              <div className={`terms-box${E.terms_accept ? ' has-error' : ''}`}>
-                <label className="check">
-                  <input type="checkbox" checked={termsOk} onChange={(e) => setTermsOk(e.target.checked)} />
-                  <span>
-                    קראתי ואני מסכימה ל
-                    <button type="button" className="linklike" onClick={() => setShowTerms(true)}>תנאי הקהילה</button>
-                    {' '}(גרסה <bdi dir="ltr">{terms.version}</bdi>)
-                  </span>
-                </label>
-                {E.terms_accept && <span className="field-error">{E.terms_accept}</span>}
-              </div>
+              <TermsAcceptance version={terms.version} checked={termsOk} onChange={setTermsOk} error={E.terms_accept} />
             )}
-            {showTerms && <TermsDialog onClose={() => setShowTerms(false)} />}
           </>
         )}
 

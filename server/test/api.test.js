@@ -410,3 +410,11 @@ test('two exports: with names for Noa, anonymous for brands', async () => {
   const found = await admin.get(`/api/v1/admin/creators?q=${code}`).expect(200);
   assert.deepEqual(found.body.creators.map((x) => x.id), [a.id]);
 });
+
+test('terms acceptance records that the terms were read to the end', async () => {
+  const c = await makeCreator({ admin, terms_accept: { version: '2026-10-v1', read_to_end: true } });
+  const { rows } = await pool.query(
+    `SELECT payload FROM events WHERE user_id = $1 AND type = 'terms_accepted' ORDER BY id DESC LIMIT 1`, [c.id]);
+  assert.equal(rows[0].payload.read_to_end, true);
+  assert.equal(rows[0].payload.version, '2026-10-v1');
+});
