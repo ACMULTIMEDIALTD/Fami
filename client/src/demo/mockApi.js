@@ -201,6 +201,16 @@ const routes = [
     db.session = u.id; u.last_login_at = now();
     return { user: publicUser(u) };
   }],
+  ['DELETE', '/me/account', (b) => {
+    const u = me();
+    if (b?.acknowledge_terms !== true) fail(400, 'validation_error', 'יש לאשר שקראת את ההסבר על התנאים', { fields: { acknowledge_terms: 'יש לאשר' } });
+    if (b?.confirm !== 'מחיקה') fail(400, 'validation_error', 'יש להקליד "מחיקה" לאישור', { fields: { confirm: 'יש להקליד "מחיקה" לאישור' } });
+    db.creators = db.creators.filter((c) => c.user_id !== u.id);
+    db.applications = db.applications.filter((x) => x.creator_id !== u.id);
+    db.users = db.users.filter((x) => x.id !== u.id);
+    db.session = null;
+    return { ok: true };
+  }],
   ['POST', '/auth/logout', () => { db.session = null; return { ok: true }; }],
   ['GET', '/auth/me', () => {
     const u = me();

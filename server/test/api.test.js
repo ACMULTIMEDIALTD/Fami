@@ -657,3 +657,55 @@ test('home address: required when open to barter, gates product campaigns, confi
   await admin.patch(`/api/v1/admin/applications/${paidApp}`).send({ status: 'selected' }).expect(200);
   await a.put(`/api/v1/me/applications/${paidApp}/address`).send(fixed).expect(409);
 });
+
+test('account deletion: removes her data, keeps invoices in the payment archive, tells Noa', async () => {
+  const cr = await makeCreator({ admin });
+  const c = (await admin.post('/api/v1/admin/campaigns').send(campaignBody({ title: 'לפני מחיקה' })).expect(201)).body.campaign;
+  const appId = (await cr.agent.post(`/api/v1/campaigns/${c.slug}/apply`).send({}).expect(201)).body.application.id;
+  await admin.patch(`/api/v1/admin/applications/${appId}`).send({ status: 'completed' }).expect(200);
+  const fileId = (await cr.agent.post('/api/v1/me/invoice-files?name=kabala.pdf').set('Content-Type', 'application/pdf')
+    .send(Buffer.from('%PDF-1.4 archived')).expect(201)).body.id;
+  await cr.agent.put(`/api/v1/me/applications/${appId}/invoice`).send({
+    file_id: fileId, doc_type: 'receipt', amount_ils: 300, account_holder: 'מחוקה', bank_name: 'לאומי', branch: '1', account_number: '999',
+  }).expect(200);
+
+  // Needs the typed confirmation; admins can't use it
+  await cr.agent.delete('/api/v1/me/account').send({ confirm: 'כן', acknowledge_terms: true }).expect(400);
+  // …and the acknowledgement that the terms still apply
+  const ack = await cr.agent.delete('/api/v1/me/account').send({ confirm: 'מחיקה' }).expect(400);
+  assert.ok(ack.body.fields.acknowledge_terms);
+  await admin.delete('/api/v1/me/account').send({ confirm: 'מחיקה', acknowledge_terms: true }).expect(403);
+
+  outbox.length = 0;
+  await cr.agent.delete('/api/v1/me/account').send({ confirm: 'מחיקה', acknowledge_terms: true }).expect(200);
+  await cr.agent.get('/api/v1/auth/me').expect(401); // signed out
+  assert.equal(outbox.length, 1);
+  assert.match(outbox[0].subject, /מחקה את החשבון/);
+  assert.ok(outbox[0].text.includes('1 חשבוניות'));
+  assert.ok(outbox[0].text.includes('עוד לא שולמו'));
+
+  const left = await pool.query(
+    `SELECT (SELECT count(*) FROM users WHERE id = $1)::int AS users, (SELECT count(*) FROM creators WHERE user_id = $1)::int AS creators,
+            (SELECT count(*) FROM applications WHERE id = $2)::int AS apps, (SELECT count(*) FROM events WHERE user_id = $1)::int AS events`,
+    [cr.id, appId],
+  );
+  assert.deepEqual(left.rows[0], { users: 0, creators: 0, apps: 0, events: 0 });
+  // The record of the accepted terms stays (non-circumvention / confidentiality outlive the account)
+  const rec = (await pool.query('SELECT * FROM deleted_accounts WHERE email = $1', [cr.email])).rows[0];
+  assert.equal(rec.terms_version, '2026-10-v1');
+  assert.ok(rec.terms_accepted_at);
+  assert.equal(rec.full_name, 'יוצרת בדיקה');
+  assert.ok(outbox[0].text.includes('מחקה את החשבון'));
+  // Can sign up again with the same email
+  await agent().post('/api/v1/auth/signup').send({ email: cr.email, phone: '0547770000', password: 'password123' }).expect(201);
+
+  // The invoice is in Noa's archive, and its file still opens
+  const { archive, payments } = (await admin.get('/api/v1/admin/payments').expect(200)).body;
+  assert.ok(!payments.some((p) => p.id === appId));
+  const arc = archive.find((x) => x.campaign_title === 'לפני מחיקה');
+  assert.equal(arc.amount_ils, 300);
+  assert.equal(arc.paid_at, null);
+  const file = await agent().get(arc.file_url).expect(200);
+  assert.equal(file.headers['content-type'], 'application/pdf');
+  await agent().get(arc.file_url.replace('/archive/', '/invoice/')).expect(403);
+});

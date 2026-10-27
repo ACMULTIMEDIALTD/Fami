@@ -44,6 +44,7 @@ export default function EditProfile() {
         submitLabel="שמירה"
         onSaved={(p) => { setProfile(p); setSaved(true); setKey((k) => k + 1); window.scrollTo(0, 0); }}
       />
+      <p className="center-text small"><Link to="/me/delete" className="muted">מחיקת החשבון</Link></p>
     </div>
   );
 }
