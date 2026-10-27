@@ -22,6 +22,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const [code, setCode] = useState('');
   const [error, setError] = useState(params.get('error') === 'link_expired' ? 'הקישור פג תוקף או שכבר נעשה בו שימוש. אפשר לבקש קישור חדש.' : null);
 
   if (me) return <Navigate to={next || (me.user.role === 'admin' ? '/admin' : '/dashboard')} replace />;
@@ -50,13 +51,52 @@ export default function Login() {
     }
   };
 
+  // Typing the code keeps the creator inside the home-screen app (a tapped link opens the browser)
+  const submitCode = async (value = code) => {
+    if (!/^\d{6}$/.test(value)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post('/auth/code', { email, code: value });
+      await refresh();
+      nav(next || '/dashboard', { replace: true });
+    } catch (err) {
+      setError(err);
+      setCode('');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (sent) {
     return (
-      <div className="narrow card center">
+      <div className="narrow card center code-step">
         <h1>בדקי את המייל 💌</h1>
-        <p>אם <b dir="ltr">{email}</b> רשום אצלנו, שלחנו אלייך קישור כניסה. הקישור תקף ל-30 דקות.</p>
-        <p className="muted">לא הגיע? כדאי לבדוק בתיקיית הספאם ולסמן ״לא ספאם״, כדי שהמייל הבא יגיע לתיבה הראשית.</p>
-        <button className="btn ghost" onClick={() => setSent(false)}>שליחה מחדש</button>
+        <p>אם <b dir="ltr">{email}</b> רשום אצלנו, שלחנו אלייך <b>קוד כניסה</b> בן 6 ספרות. הקלידי אותו כאן:</p>
+        <form onSubmit={(e) => { e.preventDefault(); submitCode(); }}>
+          <input
+            className="code-input"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="\d{6}"
+            maxLength={6}
+            dir="ltr"
+            autoFocus
+            aria-label="קוד כניסה"
+            placeholder="••••••"
+            value={code}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+              setCode(v);
+              if (v.length === 6) submitCode(v); // auto-submit, also when iOS fills the code from Mail
+            }}
+          />
+          <ErrorBox error={error} />
+          <button className="btn primary block" disabled={busy || code.length !== 6}>{busy ? 'רגע…' : 'כניסה'}</button>
+        </form>
+        <p className="muted small">אפשר גם ללחוץ על הכפתור במייל. הוא יפתח את האתר בדפדפן.</p>
+        <p className="muted small">לא הגיע? כדאי לבדוק בתיקיית הספאם ולסמן ״לא ספאם״, כדי שהמייל הבא יגיע לתיבה הראשית.</p>
+        <button className="btn ghost sm" onClick={() => { setSent(false); setCode(''); setError(null); }}>שליחת קוד חדש</button>
       </div>
     );
   }
@@ -76,11 +116,11 @@ export default function Login() {
         )}
         <ErrorBox error={error} />
         <button className="btn primary block" disabled={busy}>
-          {busy ? 'רגע…' : mode === 'magic' ? 'שלחו לי קישור כניסה' : 'כניסה'}
+          {busy ? 'רגע…' : mode === 'magic' ? 'שלחו לי קוד כניסה למייל' : 'כניסה'}
         </button>
         {mailEnabled && (
           <button type="button" className="linklike center-text" onClick={() => setMode(mode === 'magic' ? 'password' : 'magic')}>
-            {mode === 'magic' ? 'כניסה עם סיסמה' : 'כניסה עם קישור למייל (בלי סיסמה)'}
+            {mode === 'magic' ? 'כניסה עם סיסמה' : 'כניסה עם קוד למייל (בלי סיסמה)'}
           </button>
         )}
         {!mailEnabled && <p className="small muted center-text">שכחת סיסמה? כתבי לנועה בווטסאפ.</p>}
