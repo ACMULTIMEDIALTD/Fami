@@ -1,6 +1,7 @@
 import logoUrl from '../assets/logo.jpg';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
+import BuiltBy from '../components/BuiltBy.jsx';
 
 export default function Landing() {
   const { me } = useAuth();
@@ -42,6 +43,7 @@ export default function Landing() {
 
       <footer className="landing-footer">
         © The Creator Club · Noa Avital · <Link to="/terms">תנאי הקהילה ופרטיות</Link>
+        <BuiltBy />
       </footer>
     </div>
   );

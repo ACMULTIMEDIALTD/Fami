@@ -1,3 +1,4 @@
+import BuiltBy from '../components/BuiltBy.jsx';
 import { Link } from 'react-router-dom';
 import logoUrl from '../assets/logo.jpg';
 import TermsContent from '../components/TermsContent.jsx';
@@ -10,6 +11,7 @@ export default function Terms() {
       <img src={logoUrl} alt="" className="hero-logo sm" width="120" height="120" />
       <h1>תנאי הצטרפות לקהילה</h1>
       <div className="card"><TermsContent /></div>
+      <footer className="landing-footer"><BuiltBy /></footer>
     </div>
   );
 }

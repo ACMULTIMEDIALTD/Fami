@@ -1,3 +1,4 @@
+import BuiltBy from '../components/BuiltBy.jsx';
 import logoUrl from '../assets/logo.jpg';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -44,6 +45,7 @@ export default function Brands() {
           <button className="btn primary block" disabled={state.busy}>{state.busy ? 'שולחת…' : 'שליחה'}</button>
         </form>
       )}
+      <footer className="landing-footer"><BuiltBy /></footer>
     </div>
   );
 }
