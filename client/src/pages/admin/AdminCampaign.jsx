@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api } from '../../api.js';
+import { api, assetUrl } from '../../api.js';
 import { Spinner } from '../../auth.jsx';
 import { CAMPAIGN_STATUS, APP_STATUS_ADMIN, TIERS, fmtK, fmtDate, fmtDateTime, fmtNum } from '../../labels.js';
 import { ErrorBox, Empty, TypeBadge, CampaignStatusChip, AppStatusChip, ConfirmButton, DownloadLink, igUrl, ttUrl } from '../../components/ui.jsx';
@@ -81,7 +81,8 @@ export default function AdminCampaign() {
     <div>
       <Link to="/admin/campaigns" className="back">→ קמפיינים</Link>
       <div className="page-head">
-        <div>
+        {c.image_url && <img className="admin-thumb" src={assetUrl(c.image_url)} alt="" />}
+        <div className="grow">
           <h1 className="page-title">{c.title}</h1>
           <div className="row-inline">
             <TypeBadge type={c.type} /><CampaignStatusChip status={c.status} />

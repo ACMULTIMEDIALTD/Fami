@@ -8,6 +8,7 @@ import { whatsappText } from '../../lib/whatsapp.js';
 import { logEvent } from '../../lib/events.js';
 import { CREATOR_CSV_COLUMNS } from './creators.js';
 import { notifyCampaignOpened } from '../../lib/push.js';
+import { imageUrl } from '../../lib/images.js';
 
 const router = Router();
 const uuid = z.string().uuid();
@@ -35,12 +36,13 @@ const campaignSchema = z.object({
   deadline_publish: nullable(z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'תאריך לא תקין')),
   slug: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{2,39}$/, 'אותיות באנגלית, ספרות ומקפים (3–40)').optional(),
   status: z.enum(STATUSES).optional(),
+  image_id: nullable(z.string().uuid()),
 });
 
 const FIELDS = [
   'brand_id', 'title', 'brand_display_name', 'short_description', 'full_brief', 'type', 'product_value_ils',
   'payment_note', 'min_followers', 'platforms', 'required_niche_ids', 'region_ids', 'slots',
-  'deadline_apply', 'deadline_publish', 'slug',
+  'deadline_apply', 'deadline_publish', 'slug', 'image_id',
 ];
 
 const newSlug = () => crypto.randomBytes(4).toString('hex').slice(0, 6);
@@ -56,14 +58,14 @@ router.get('/', async (req, res) => {
   if (STATUSES.includes(req.query.status)) { params.push(req.query.status); where = 'WHERE c.status = $1'; }
   const { rows } = await query(
     `SELECT c.id, c.slug, c.title, c.brand_display_name, c.type, c.status, c.slots, c.min_followers,
-            c.deadline_apply, c.deadline_publish, c.created_at, b.name AS brand_name, ${COUNTS}
+            c.deadline_apply, c.deadline_publish, c.created_at, c.image_id, b.name AS brand_name, ${COUNTS}
      FROM campaigns c LEFT JOIN brands b ON b.id = c.brand_id
      ${where}
      ORDER BY CASE c.status WHEN 'open' THEN 0 WHEN 'draft' THEN 1 WHEN 'closed' THEN 2 WHEN 'in_progress' THEN 3 ELSE 4 END,
               c.deadline_apply DESC`,
     params,
   );
-  res.json({ campaigns: rows });
+  res.json({ campaigns: rows.map((c) => ({ ...c, image_url: imageUrl(c.image_id) })) });
 });
 
 router.post('/', async (req, res) => {
@@ -82,13 +84,13 @@ router.post('/', async (req, res) => {
       );
       await logEvent(req.user.id, 'campaign_created', { campaign_id: campaign.id });
       if (campaign.status === 'open') await notifyCampaignOpened(campaign);
-      return res.status(201).json({ campaign });
+      return res.status(201).json({ campaign: { ...campaign, image_url: imageUrl(campaign.image_id) } });
     } catch (err) {
       if (err.code === '23505' && err.constraint?.includes('slug')) {
         if (d.slug) throw new HttpError(409, 'slug_taken', 'הכתובת הזו כבר בשימוש', { fields: { slug: 'הכתובת הזו כבר בשימוש' } });
         if (attempt < 5) continue;
       }
-      if (err.code === '23503') throw new HttpError(400, 'brand_not_found', 'מותג לא קיים');
+      if (err.code === '23503') throw new HttpError(400, 'reference_not_found', 'המותג או התמונה לא נמצאו');
       throw err;
     }
   }
@@ -101,7 +103,7 @@ async function getCampaign(id) {
     [id],
   );
   if (!c) throw notFound('campaign_not_found');
-  return c;
+  return { ...c, image_url: imageUrl(c.image_id) };
 }
 
 router.get('/:id', async (req, res) => {
@@ -144,7 +146,7 @@ router.patch('/:id', async (req, res) => {
     return { autoRejected, opened: d.status === 'open' && cur.status !== 'open' };
   }).catch((err) => {
     if (err.code === '23505') throw new HttpError(409, 'slug_taken', 'הכתובת הזו כבר בשימוש', { fields: { slug: 'הכתובת הזו כבר בשימוש' } });
-    if (err.code === '23503') throw new HttpError(400, 'brand_not_found', 'מותג לא קיים');
+    if (err.code === '23503') throw new HttpError(400, 'reference_not_found', 'המותג או התמונה לא נמצאו');
     throw err;
   });
 

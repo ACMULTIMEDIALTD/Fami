@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api } from '../api.js';
+import { api, assetUrl } from '../api.js';
 import { useAuth, Spinner } from '../auth.jsx';
 import { PLATFORMS, REJECTED_SOFT, fmtNum, fmtDate, fmtDateTime } from '../labels.js';
 import { ErrorBox, TypeBadge, AppStatusChip, CampaignStatusChip, ConfirmButton } from '../components/ui.jsx';
@@ -72,7 +72,8 @@ export default function Campaign() {
   return (
     <div className="narrow campaign-page">
       <Link to={isAdmin ? '/admin/campaigns' : '/dashboard'} className="back">→ חזרה</Link>
-      <div className="card">
+      <div className={`card${c.image_url ? ' has-img' : ''}`}>
+        {c.image_url && <img className="campaign-hero" src={assetUrl(c.image_url)} alt="" />}
         <div className="cc-top">
           <TypeBadge type={c.type} />
           {c.status !== 'open' && <CampaignStatusChip status={c.status} />}

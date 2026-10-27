@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api } from '../../api.js';
+import { api, assetUrl } from '../../api.js';
+import { resizeImage } from '../../lib/resizeImage.js';
 import { Spinner } from '../../auth.jsx';
 import { PLATFORMS, TYPE_LABELS } from '../../labels.js';
 import { Field, ErrorBox } from '../../components/ui.jsx';
@@ -17,8 +18,53 @@ const inDays = (n) => { const d = new Date(Date.now() + n * 864e5); d.setHours(2
 const EMPTY = {
   title: '', brand_id: '', brand_display_name: '', short_description: '', full_brief: '', payment_note: '',
   type: 'paid', product_value_ils: '', min_followers: '0', platforms: ['instagram'], required_niche_ids: [], region_ids: [],
-  slots: '5', deadline_apply: inDays(5), deadline_publish: '', slug: '',
+  slots: '5', deadline_apply: inDays(5), deadline_publish: '', slug: '', image_id: null, image_url: null,
 };
+
+function ImagePicker({ url, onChange, error }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const pick = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow picking the same file again
+    if (!file) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const blob = await resizeImage(file);
+      const r = await api.upload('/admin/images', blob);
+      onChange(r.id, r.url);
+    } catch (ex) {
+      setErr(ex.message === 'not_image' || ex.message === 'decode_failed' ? 'הקובץ הזה לא נראה כמו תמונה' : ex.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="field">
+      <span className="field-label">תמונה לקמפיין</span>
+      {url ? (
+        <div className="image-preview">
+          <img src={assetUrl(url)} alt="תמונת הקמפיין" />
+          <div className="row-inline">
+            <label className="btn ghost sm">החלפה<input type="file" accept="image/*" hidden onChange={pick} disabled={busy} /></label>
+            <button type="button" className="btn ghost sm" onClick={() => onChange(null, null)} disabled={busy}>הסרה</button>
+          </div>
+        </div>
+      ) : (
+        <label className={`image-drop${busy ? ' busy' : ''}`}>
+          <input type="file" accept="image/*" hidden onChange={pick} disabled={busy} />
+          <span className="image-drop-icon" aria-hidden="true">🖼</span>
+          <span>{busy ? 'מעלה…' : 'בחירת תמונה'}</span>
+          <span className="hint">לא חובה. מופיעה בכרטיס הקמפיין ובעמוד שלו.</span>
+        </label>
+      )}
+      {(err || error) && <span className="field-error">{err || error}</span>}
+    </div>
+  );
+}
 
 export default function AdminCampaignForm() {
   const { id } = useParams();
@@ -44,6 +90,8 @@ export default function AdminCampaignForm() {
         region_ids: c.region_ids || [],
         deadline_apply: toLocalInput(c.deadline_apply),
         deadline_publish: c.deadline_publish || '',
+        image_id: c.image_id || null,
+        image_url: c.image_url || null,
         status: c.status,
       })).catch(setError);
     }
@@ -67,6 +115,7 @@ export default function AdminCampaignForm() {
       slug: f.slug || undefined,
     };
     delete body.status;
+    delete body.image_url;
     try {
       if (id) {
         await api.patch(`/admin/campaigns/${id}`, body);
@@ -91,6 +140,7 @@ export default function AdminCampaignForm() {
       <ErrorBox error={error} />
       <form className="card form" onSubmit={(e) => { e.preventDefault(); save(false); }} noValidate>
         <h2>מה רואות כולן</h2>
+        <ImagePicker url={f.image_url} error={E.image_id} onChange={(image_id, image_url) => setF((cur) => ({ ...cur, image_id, image_url }))} />
         <Field label="כותרת" required error={E.title}><input value={f.title} onChange={set('title')} placeholder="השקת קרם פנים חדש" /></Field>
         <div className="row2">
           <Field label="מותג (פנימי)" error={E.brand_id}>

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { PLATFORMS, fmtNum, fmtDate, daysLeft } from '../labels.js';
 import { TypeBadge, AppStatusChip } from './ui.jsx';
+import { assetUrl } from '../api.js';
 
 export function DeadlineText({ date }) {
   const d = daysLeft(date);
@@ -13,7 +14,8 @@ export function DeadlineText({ date }) {
 export default function CampaignCard({ c }) {
   const elig = c.eligibility;
   return (
-    <Link to={`/c/${c.slug}`} className="card campaign-card">
+    <Link to={`/c/${c.slug}`} className={`card campaign-card${c.image_url ? ' has-img' : ''}`}>
+      {c.image_url && <img className="cc-img" src={assetUrl(c.image_url)} alt="" loading="lazy" />}
       <div className="cc-top">
         <TypeBadge type={c.type} />
         {c.my_application ? <AppStatusChip status={c.my_application.status} /> : elig && !elig.ok ? <span className="chip muted">לא מתאים</span> : null}

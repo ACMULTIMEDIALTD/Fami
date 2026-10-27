@@ -38,7 +38,7 @@ export default function InstallHint() {
         <b>להוסיף את הקהילה למסך הבית?</b>
         {prompt
           ? <p>כניסה בלחיצה אחת, כמו אפליקציה.</p>
-          : <p>בספארי: לחצי על כפתור השיתוף <span aria-hidden="true">⎋</span> ואז על ״הוספה למסך הבית״.</p>}
+          : <p>בספארי: לחצי על כפתור השיתוף (ריבוע עם חץ למעלה) ואז על ״הוספה למסך הבית״.</p>}
       </div>
       {prompt && <button className="btn primary sm" onClick={install}>הוספה</button>}
       <button className="icon-btn" onClick={close} aria-label="סגירה">×</button>

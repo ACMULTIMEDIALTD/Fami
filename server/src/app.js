@@ -10,6 +10,7 @@ import publicRoutes from './routes/public.js';
 import meRoutes from './routes/me.js';
 import campaignRoutes from './routes/campaigns.js';
 import adminRoutes from './routes/admin/index.js';
+import imageRoutes from './routes/images.js';
 
 export function createApp() {
   const app = express();
@@ -29,6 +30,7 @@ export function createApp() {
   api.use('/public', publicRoutes);
   api.use('/me', meRoutes);
   api.use('/campaigns', campaignRoutes);
+  api.use('/images', imageRoutes);
   api.use('/admin', adminRoutes);
   api.use((_req, _res, next) => next(new HttpError(404, 'not_found')));
 
