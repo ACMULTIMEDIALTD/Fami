@@ -19,8 +19,10 @@ const EMPTY = {
   audience_gender: '', audience_age_min: '', audience_age_max: '', audience_sector: '',
   open_to_paid: true, open_to_barter: true, open_to_events: false, open_to_affiliate: false,
   billing_status: 'none',
+  address_street: '', address_apt: '', address_city: '', address_zip: '',
   niches: [], links: [],
 };
+const ADDRESS_KEYS = ['address_street', 'address_apt', 'address_city', 'address_zip'];
 
 function fromProfile(p) {
   if (!p) return EMPTY;
@@ -49,6 +51,8 @@ export default function ProfileWizard({ initial, requireTerms, terms, submitLabe
   const [f, setF] = useState(() => fromProfile(initial));
   const [step, setStep] = useState(0);
   const [termsOk, setTermsOk] = useState(false);
+  // Already confirmed stays ticked until she changes the address
+  const [addressOk, setAddressOk] = useState(!!initial?.address_confirmed_at);
   const [errors, setErrors] = useState({});
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -56,7 +60,10 @@ export default function ProfileWizard({ initial, requireTerms, terms, submitLabe
   useEffect(() => { api.get('/public/meta').then(setMeta).catch(setError); }, []);
   useEffect(() => { window.scrollTo(0, 0); }, [step]);
 
-  const set = (k) => (v) => setF((s) => ({ ...s, [k]: v?.target ? v.target.value : v }));
+  const set = (k) => (v) => {
+    if (ADDRESS_KEYS.includes(k)) setAddressOk(false);
+    setF((s) => ({ ...s, [k]: v?.target ? v.target.value : v }));
+  };
   const toggleNiche = (id) => setF((s) => ({
     ...s, niches: s.niches.includes(id) ? s.niches.filter((x) => x !== id) : s.niches.length >= 5 ? s.niches : [...s.niches, id],
   }));
@@ -79,6 +86,7 @@ export default function ProfileWizard({ initial, requireTerms, terms, submitLabe
         ...f,
         region_id: f.region_id ? Number(f.region_id) : null,
         links: f.links.filter((l) => l.url.trim()),
+        address_confirmed: addressOk,
         ...(requireTerms ? { terms_accept: { version: terms.version, read_to_end: true } } : {}),
       };
       const res = await api.put('/me/profile', body);
@@ -208,6 +216,32 @@ export default function ProfileWizard({ initial, requireTerms, terms, submitLabe
               <Toggle label="פתוחה לאירועים" checked={f.open_to_events} onChange={set('open_to_events')} />
               <Toggle label="פתוחה לשיווק שותפים" checked={f.open_to_affiliate} onChange={set('open_to_affiliate')} />
             </div>
+            <div className="subhead">
+              <h3>כתובת למשלוח מוצרים</h3>
+              <span className="muted">{f.open_to_barter ? 'לשם יישלחו מוצרים בקמפיינים של בארטר ומשולבים.' : 'נדרשת רק לקמפיינים שנשלח בהם מוצר (בארטר או משולב).'}</span>
+            </div>
+            <Field label="רחוב ומספר בית" required={f.open_to_barter} error={E.address_street}>
+              <input value={f.address_street} onChange={set('address_street')} autoComplete="address-line1" placeholder="הרצל 12" />
+            </Field>
+            <div className="row2">
+              <Field label="דירה / קומה / כניסה" error={E.address_apt}>
+                <input value={f.address_apt} onChange={set('address_apt')} autoComplete="address-line2" placeholder="דירה 4, קומה 2" />
+              </Field>
+              <Field label="עיר" required={f.open_to_barter} error={E.address_city}>
+                <input value={f.address_city} onChange={set('address_city')} autoComplete="address-level2" placeholder={f.city || ''} />
+              </Field>
+            </div>
+            <Field label="מיקוד" error={E.address_zip}>
+              <input inputMode="numeric" dir="ltr" maxLength={7} value={f.address_zip} onChange={set('address_zip')} autoComplete="postal-code" />
+            </Field>
+            {(f.address_street || f.open_to_barter) && (
+              <label className={`check-confirm${E.address_confirmed ? ' has-error' : ''}`}>
+                <input type="checkbox" checked={addressOk} onChange={(e) => { setAddressOk(e.target.checked); setErrors((x) => ({ ...x, address_confirmed: undefined })); }} />
+                <span>אני מאשרת שהכתובת נכונה ומעודכנת</span>
+              </label>
+            )}
+            {E.address_confirmed && <span className="field-error">{E.address_confirmed}</span>}
+
             <Field label="סטטוס עסקי" error={E.billing_status}>
               <select value={f.billing_status} onChange={set('billing_status')}>
                 {Object.entries(BILLING).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

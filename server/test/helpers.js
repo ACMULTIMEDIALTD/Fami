@@ -46,6 +46,11 @@ export function profile(overrides = {}) {
     open_to_paid: true,
     open_to_barter: true,
     billing_status: 'osek_patur',
+    address_street: 'הרצל 12',
+    address_apt: 'דירה 4',
+    address_city: 'תל אביב',
+    address_zip: '6100000',
+    address_confirmed: true,
     terms_accept: { version: '2026-10-v1' },
     ...overrides,
   };

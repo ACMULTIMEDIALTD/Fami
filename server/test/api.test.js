@@ -597,3 +597,63 @@ test('payments: barter campaigns need no invoice', async () => {
   await admin.post(`/api/v1/admin/applications/${appId}/paid`).send({ paid: true }).expect(409);
   assert.ok(!(await admin.get('/api/v1/admin/payments').expect(200)).body.payments.some((x) => x.id === appId));
 });
+
+test('home address: required when open to barter, gates product campaigns, confirmed per campaign', async () => {
+  // Open to barter → address + confirmation required
+  const a = agent();
+  await a.post('/api/v1/auth/signup').send({ email: 'addr@test.local', phone: '0539998877', password: 'password123' }).expect(201);
+  const noAddr = { address_street: '', address_apt: '', address_city: '', address_zip: '', address_confirmed: false };
+  let r = await a.put('/api/v1/me/profile').send(profile(noAddr)).expect(400);
+  assert.ok(r.body.fields.address_street);
+  r = await a.put('/api/v1/me/profile').send(profile({ address_confirmed: false })).expect(400);
+  assert.ok(r.body.fields.address_confirmed);
+  await a.put('/api/v1/me/profile').send(profile({ address_zip: '12' })).expect(400);
+  // Paid only → address optional
+  await a.put('/api/v1/me/profile').send(profile({ ...noAddr, open_to_barter: false })).expect(201);
+
+  const me = (await a.get('/api/v1/auth/me').expect(200)).body.user;
+  await admin.patch(`/api/v1/admin/creators/${me.id}`).send({ status: 'active' }).expect(200);
+  const hybrid = (await admin.post('/api/v1/admin/campaigns').send(campaignBody({ title: 'משולב', type: 'hybrid' })).expect(201)).body.campaign;
+
+  // No address → can't apply to a campaign that ships a product
+  const page = (await a.get(`/api/v1/campaigns/${hybrid.slug}`).expect(200)).body;
+  assert.equal(page.eligibility.reason, 'missing_address');
+  await a.post(`/api/v1/campaigns/${hybrid.slug}/apply`).send({}).expect(422);
+
+  await a.put('/api/v1/me/profile').send(profile({ open_to_barter: false })).expect(200);
+  const prof = (await a.get('/api/v1/me/profile').expect(200)).body.profile;
+  assert.equal(prof.address_city, 'תל אביב');
+  assert.ok(prof.address_confirmed_at);
+  const appId = (await a.post(`/api/v1/campaigns/${hybrid.slug}/apply`).send({}).expect(201)).body.application.id;
+  assert.equal((await a.get(`/api/v1/campaigns/${hybrid.slug}`).expect(200)).body.shipping, null);
+
+  // Selected → email mentions the address; page asks to confirm it
+  outbox.length = 0;
+  await admin.patch(`/api/v1/admin/applications/${appId}`).send({ status: 'selected' }).expect(200);
+  assert.ok(outbox[0].text.includes('כתובת המשלוח'));
+  let ship = (await a.get(`/api/v1/campaigns/${hybrid.slug}`).expect(200)).body.shipping;
+  assert.equal(ship.confirmed_at, null);
+  assert.equal(ship.address.address_street, 'הרצל 12');
+
+  // She corrects it → profile updated, snapshot on the application, Noa sees it in the export
+  const fixed = { address_street: 'ביאליק 7', address_apt: '', address_city: 'רמת גן', address_zip: '' };
+  await a.put(`/api/v1/me/applications/${appId}/address`).send({ ...fixed, address_city: '' }).expect(400);
+  await a.put(`/api/v1/me/applications/${appId}/address`).send(fixed).expect(200);
+  ship = (await a.get(`/api/v1/campaigns/${hybrid.slug}`).expect(200)).body.shipping;
+  assert.ok(ship.confirmed_at);
+  assert.equal(ship.shipping_address, 'ביאליק 7, רמת גן');
+  assert.equal((await a.get('/api/v1/me/profile').expect(200)).body.profile.address_city, 'רמת גן');
+  const apps = (await admin.get(`/api/v1/admin/campaigns/${hybrid.id}/applications`).expect(200)).body.applications;
+  assert.ok(apps.find((x) => x.id === appId).address_confirmed_at);
+  const csv = await admin.get(`/api/v1/admin/campaigns/${hybrid.id}/export.csv`).expect(200);
+  assert.ok(csv.text.includes('ביאליק 7, רמת גן'));
+  // The anonymous file for brands never has it
+  const brands = await admin.get('/api/v1/admin/creators/export-brands.csv').expect(200);
+  assert.ok(!brands.text.includes('ביאליק'));
+
+  // Paid-only campaign: nothing to ship
+  const paid = (await admin.post('/api/v1/admin/campaigns').send(campaignBody({ title: 'רק תשלום' })).expect(201)).body.campaign;
+  const paidApp = (await a.post(`/api/v1/campaigns/${paid.slug}/apply`).send({}).expect(201)).body.application.id;
+  await admin.patch(`/api/v1/admin/applications/${paidApp}`).send({ status: 'selected' }).expect(200);
+  await a.put(`/api/v1/me/applications/${paidApp}/address`).send(fixed).expect(409);
+});

@@ -6,6 +6,7 @@ import { PLATFORMS, REJECTED_SOFT, fmtNum, fmtDate, fmtDateTime } from '../label
 import { ErrorBox, TypeBadge, AppStatusChip, CampaignStatusChip, ConfirmButton } from '../components/ui.jsx';
 import { DeadlineText } from '../components/CampaignCard.jsx';
 import InvoiceBox from '../components/InvoiceBox.jsx';
+import ShippingBox from '../components/ShippingBox.jsx';
 
 function ApplyBox({ slug, onApplied }) {
   const [open, setOpen] = useState(false);
@@ -67,7 +68,7 @@ export default function Campaign() {
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Spinner />;
 
-  const { campaign: c, my_application: app, eligibility: elig, selected, payment } = data;
+  const { campaign: c, my_application: app, eligibility: elig, selected, payment, shipping } = data;
   const isAdmin = me.user.role === 'admin';
 
   return (
@@ -95,6 +96,7 @@ export default function Campaign() {
         </dl>
       </div>
 
+      {shipping && <ShippingBox applicationId={app.id} shipping={shipping} onChange={load} />}
       {payment && <InvoiceBox applicationId={app.id} payment={payment} onChange={load} />}
 
       {(selected || isAdmin) && (
@@ -134,7 +136,7 @@ export default function Campaign() {
               <span className="blocked-icon" aria-hidden="true">✋</span>
               <div>
                 <b>{elig?.message}</b>
-                {['not_open_to_paid', 'not_open_to_barter', 'not_open_to_type', 'min_followers'].includes(elig?.reason) && (
+                {['not_open_to_paid', 'not_open_to_barter', 'not_open_to_type', 'min_followers', 'missing_address'].includes(elig?.reason) && (
                   <p className="muted">אם משהו השתנה, אפשר לעדכן את <Link to="/me">הפרופיל</Link>.</p>
                 )}
               </div>

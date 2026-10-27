@@ -1,4 +1,5 @@
 import { config } from '../config.js';
+import { hasAddress, shipsProduct } from './address.js';
 
 export const maxFollowers = (c) => Math.max(c?.instagram_followers || 0, c?.tiktok_followers || 0, 0);
 
@@ -33,6 +34,11 @@ export function checkEligibility({ user, creator, campaign, application, now = n
   }
   if (campaign.type === 'hybrid' && !creator.open_to_paid && !creator.open_to_barter) {
     return block('not_open_to_type', 'הפרופיל שלך לא מסומן כפתוח לקמפיינים בתשלום או בארטר');
+  }
+
+  // Products are shipped to her home, so the address must be in the profile before applying
+  if (shipsProduct(campaign.type) && !hasAddress(creator)) {
+    return block('missing_address', 'בקמפיין הזה נשלח אלייך מוצר, אז צריך כתובת למשלוח בפרופיל');
   }
 
   if (maxFollowers(creator) < campaign.min_followers) {

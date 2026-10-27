@@ -419,3 +419,9 @@ a.list-row:hover { border-color: var(--wine); }
 .pay-list { display: flex; flex-direction: column; gap: 12px; }
 .pay-item { display: flex; flex-direction: column; gap: 8px; margin: 0; }
 .pay-item .bank { background: var(--cream-2); border-radius: 10px; padding: 10px 12px; font-size: .95rem; }
+
+/* ---------- shipping address ---------- */
+.check-confirm { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--cream-2); cursor: pointer; }
+.check-confirm input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--wine); flex: none; }
+.check-confirm.has-error { border-color: var(--red); }
+.ship-address { background: var(--cream-2); border-radius: 12px; padding: 12px 14px; margin: 10px 0; font-size: 1.05rem; }

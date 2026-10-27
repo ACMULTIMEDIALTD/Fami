@@ -7,12 +7,13 @@ import { checkEligibility } from '../lib/eligibility.js';
 import { publicCampaign, lookupNames, eligibilityCreator } from '../lib/campaigns.js';
 import { logEvent } from '../lib/events.js';
 import { needsPayment, paymentFor } from '../lib/payments.js';
+import { shipsProduct } from '../lib/address.js';
 
 const router = Router();
 router.use(requireAuth);
 
 const MY_APP = `(SELECT row_to_json(a) FROM (
-   SELECT id, status, message, applied_at, decided_at FROM applications
+   SELECT id, status, message, applied_at, decided_at, shipping_address, address_confirmed_at FROM applications
    WHERE campaign_id = c.id AND creator_id = $1) a) AS my_application`;
 
 /** Open campaigns board. Only active members see it — the board is part of what membership buys. */
@@ -53,6 +54,14 @@ async function loadForUser(req) {
   return c;
 }
 
+async function shippingFor(userId, application) {
+  const address = await one(
+    'SELECT address_street, address_apt, address_city, address_zip FROM creators WHERE user_id = $1',
+    [userId],
+  );
+  return { address, confirmed_at: application.address_confirmed_at, shipping_address: application.shipping_address };
+}
+
 router.get('/:slug', async (req, res) => {
   const c = await loadForUser(req);
   const isAdmin = req.user.role === 'admin';
@@ -74,6 +83,8 @@ router.get('/:slug', async (req, res) => {
     campaign,
     my_application: c.my_application,
     selected,
+    // Selected for a campaign with a product: she confirms where to ship it
+    shipping: selected && shipsProduct(c.type) ? await shippingFor(req.user.id, c.my_application) : null,
     payment: needsPayment(c.my_application, c.type) ? await paymentFor(req.user.id, c.my_application.id) : null,
     eligibility: isAdmin ? null : checkEligibility({ user: req.user, creator, campaign: c, application: c.my_application, names }),
   });

@@ -166,13 +166,13 @@ router.delete('/:id', async (req, res) => {
 });
 
 const APPLICANTS_SQL = `
-  SELECT a.id, a.status, a.message, a.admin_note, a.applied_at, a.decided_at, a.paid_at, ${INVOICE_COLUMNS},
+  SELECT a.id, a.status, a.message, a.admin_note, a.applied_at, a.decided_at, a.paid_at, a.shipping_address, a.address_confirmed_at, ${INVOICE_COLUMNS},
          u.id AS creator_id, u.email, u.phone, u.status AS user_status,
          cr.full_name, cr.city, r.name AS region_name,
          cr.instagram_handle, cr.instagram_followers, cr.tiktok_handle, cr.tiktok_followers, cr.youtube_url,
          GREATEST(COALESCE(cr.instagram_followers, 0), COALESCE(cr.tiktok_followers, 0)) AS max_followers,
          cr.audience_gender, cr.audience_age_min, cr.audience_age_max, cr.audience_sector,
-         cr.tier, cr.internal_rating,
+         cr.tier, cr.internal_rating, cr.address_street, cr.address_apt, cr.address_city, cr.address_zip,
          COALESCE((SELECT array_agg(n.name ORDER BY n.sort) FROM creator_niches cn JOIN niches n ON n.id = cn.niche_id
                    WHERE cn.creator_id = u.id), '{}') AS niches
   FROM applications a

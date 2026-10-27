@@ -103,6 +103,11 @@ function validateProfile(b, creating) {
   if (ig && (b.instagram_followers === '' || b.instagram_followers == null)) f.instagram_followers = 'כמה עוקבים יש באינסטגרם?';
   if (tt && (b.tiktok_followers === '' || b.tiktok_followers == null)) f.tiktok_followers = 'כמה עוקבים יש בטיקטוק?';
   if (!b.niches?.length) f.niches = 'יש לבחור לפחות תחום אחד';
+  const street = (b.address_street || '').trim();
+  const city = (b.address_city || '').trim();
+  if (b.open_to_barter && !street) f.address_street = 'כתובת למשלוח מוצרים (רחוב ומספר)';
+  if ((b.open_to_barter || street) && !city) f.address_city = 'באיזו עיר?';
+  if (street && !b.address_confirmed) f.address_confirmed = 'יש לאשר שהכתובת נכונה';
   if (creating && b.terms_accept?.version !== TERMS_VERSION) f.terms_accept = 'יש לאשר את תנאי הקהילה';
   (b.links || []).forEach((l, i) => { if (!/^https?:\/\/\S+\.\S+/.test(l.url)) f[`links.${i}.url`] = 'קישור לא תקין'; });
   if (Object.keys(f).length) fail(400, 'validation_error', 'הנתונים שנשלחו אינם תקינים', { fields: f });
@@ -116,6 +121,8 @@ function validateProfile(b, creating) {
     audience_sector: b.audience_sector || null,
     open_to_paid: !!b.open_to_paid, open_to_barter: !!b.open_to_barter, open_to_events: !!b.open_to_events, open_to_affiliate: !!b.open_to_affiliate,
     billing_status: b.billing_status || 'none',
+    address_street: street || null, address_apt: b.address_apt || null, address_city: city || null, address_zip: b.address_zip || null,
+    address_confirmed_at: street ? now() : null,
     niche_ids: [...new Set(b.niches)],
     links: (b.links || []).map((l, i) => ({ id: `l${i}`, url: l.url, label: l.label || null })),
   };
