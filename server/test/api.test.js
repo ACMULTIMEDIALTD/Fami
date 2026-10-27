@@ -303,3 +303,13 @@ test('native app: bearer token auth, push devices, push triggers', async () => {
   const { rows } = await pool.query('SELECT count(*)::int AS n FROM push_devices WHERE user_id = $1', [id]);
   assert.equal(rows[0].n, 0);
 });
+
+test('server survives the database dropping idle connections', async () => {
+  // Warm the pool, then kill every connection from the database side (what a DB restart does)
+  await Promise.all([1, 2, 3].map(() => pool.query('SELECT 1')));
+  await pool.query(`SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+                    WHERE datname = current_database() AND pid <> pg_backend_pid()`).catch(() => {});
+  await new Promise((r) => setTimeout(r, 300));
+  // Still alive and the pool reconnects
+  await agent().get('/api/v1/public/meta').expect(200);
+});

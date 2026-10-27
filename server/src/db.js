@@ -11,6 +11,13 @@ export const pool = new pg.Pool({
   max: 10,
 });
 
+// An idle connection the database closes (restart, maintenance, network blip) is reported here.
+// Without a listener Node treats it as an unhandled 'error' event and the whole server exits.
+// The pool drops the broken client and opens a new one on the next query.
+pool.on('error', (err) => {
+  console.error('postgres idle client error (recovering):', err.message);
+});
+
 export const query = (text, params) => pool.query(text, params);
 
 export async function one(text, params) {
