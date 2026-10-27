@@ -4,7 +4,7 @@ import { BILLING, GENDER, SECTORS } from '../labels.js';
 import { Field, ErrorBox, Toggle } from './ui.jsx';
 import TermsDialog from './TermsDialog.jsx';
 
-export const STEPS = ['פרטים', 'רשתות', 'קהל ותחומים', 'תעריפים ותנאים'];
+export const STEPS = ['פרטים', 'רשתות', 'קהל ותחומים', 'שיתופי פעולה ותנאים'];
 
 const STEP_OF = {
   full_name: 0, birth_year: 0, city: 0, region_id: 0,
@@ -18,7 +18,7 @@ const EMPTY = {
   instagram_handle: '', instagram_followers: '', tiktok_handle: '', tiktok_followers: '', youtube_url: '', other_platforms: '',
   audience_gender: '', audience_age_min: '', audience_age_max: '', audience_sector: '',
   open_to_paid: true, open_to_barter: true, open_to_events: false, open_to_affiliate: false,
-  rate_post_ils: '', rate_story_ils: '', rate_reel_ils: '', billing_status: 'none',
+  billing_status: 'none',
   niches: [], links: [],
 };
 
@@ -208,15 +208,6 @@ export default function ProfileWizard({ initial, requireTerms, terms, submitLabe
               <Toggle label="פתוחה לבארטר (מוצר בלבד)" checked={f.open_to_barter} onChange={set('open_to_barter')} />
               <Toggle label="פתוחה לאירועים" checked={f.open_to_events} onChange={set('open_to_events')} />
               <Toggle label="פתוחה לשיווק שותפים" checked={f.open_to_affiliate} onChange={set('open_to_affiliate')} />
-            </div>
-            <div className="subhead">
-              <h3>תעריפי מינימום (₪)</h3>
-              <span className="muted">לא מוצג לאף אחד חוץ מנועה</span>
-            </div>
-            <div className="row3">
-              <Field label="פוסט" error={E.rate_post_ils}><input inputMode="numeric" dir="ltr" value={f.rate_post_ils} onChange={set('rate_post_ils')} /></Field>
-              <Field label="סטורי" error={E.rate_story_ils}><input inputMode="numeric" dir="ltr" value={f.rate_story_ils} onChange={set('rate_story_ils')} /></Field>
-              <Field label="רילס" error={E.rate_reel_ils}><input inputMode="numeric" dir="ltr" value={f.rate_reel_ils} onChange={set('rate_reel_ils')} /></Field>
             </div>
             <Field label="סטטוס עסקי" error={E.billing_status}>
               <select value={f.billing_status} onChange={set('billing_status')}>

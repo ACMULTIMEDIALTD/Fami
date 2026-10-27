@@ -373,3 +373,12 @@ test('campaign images: upload, signed URL, members only', async () => {
   const patched = await admin.patch(`/api/v1/admin/campaigns/${c.id}`).send({ image_id: null }).expect(200);
   assert.equal(patched.body.campaign.image_url, null);
 });
+
+test('saving the profile keeps rates entered earlier (no longer in the form)', async () => {
+  const c = await makeCreator({ admin, rate_reel_ils: 700 });
+  await pool.query('UPDATE creators SET rate_reel_ils = 700 WHERE user_id = $1', [c.id]);
+  await c.agent.put('/api/v1/me/profile').send(profile({ full_name: 'שם חדש' })).expect(200);
+  const { rows } = await pool.query('SELECT rate_reel_ils, full_name FROM creators WHERE user_id = $1', [c.id]);
+  assert.equal(rows[0].rate_reel_ils, 700);
+  assert.equal(rows[0].full_name, 'שם חדש');
+});

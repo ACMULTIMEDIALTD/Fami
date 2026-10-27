@@ -68,7 +68,7 @@ const PROFILE_COLUMNS = [
   'instagram_handle', 'instagram_followers', 'tiktok_handle', 'tiktok_followers', 'youtube_url', 'other_platforms',
   'audience_gender', 'audience_age_min', 'audience_age_max', 'audience_sector',
   'open_to_paid', 'open_to_barter', 'open_to_events', 'open_to_affiliate',
-  'rate_post_ils', 'rate_story_ils', 'rate_reel_ils', 'billing_status',
+  'billing_status', // rate_*_ils are no longer asked in the creator form; saving the profile keeps stored values
 ];
 
 router.get('/profile', async (req, res) => {
