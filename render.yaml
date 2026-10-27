@@ -23,7 +23,7 @@ services:
       - key: CORS_ORIGIN
         value: https://club.noaavital.co.il
       - key: CURRENT_TERMS_VERSION
-        value: 2026-10-v1
+        value: 2026-10-v2
       - key: TERMS_PDF_URL
         sync: false
       - key: WHATSAPP_GROUP_URL

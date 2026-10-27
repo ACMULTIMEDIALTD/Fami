@@ -500,3 +500,100 @@ test('forgot password: code sign-in sets a new password; otherwise the current o
   // logged out → 401
   await agent().post('/api/v1/auth/password').send({ password: 'whatever123' }).expect(401);
 });
+
+test('payments: approve video → invoice upload with bank details → Noa marks paid', async () => {
+  const cr = await makeCreator({ admin });
+  const other = await makeCreator({ admin });
+  const c = (await admin.post('/api/v1/admin/campaigns').send(campaignBody({ title: 'קמפיין תשלום' })).expect(201)).body.campaign;
+  const appId = (await cr.agent.post(`/api/v1/campaigns/${c.slug}/apply`).send({}).expect(201)).body.application.id;
+  await admin.patch(`/api/v1/admin/applications/${appId}`).send({ status: 'selected' }).expect(200);
+
+  const pdf = Buffer.from('%PDF-1.4\n% test invoice\n');
+  const bank = { account_holder: 'דנה כהן', bank_name: 'לאומי', branch: '812', account_number: '123456' };
+  const details = { doc_type: 'receipt', amount_ils: 450, ...bank };
+
+  // Not before the video is approved
+  const early = await cr.agent.get(`/api/v1/campaigns/${c.slug}`).expect(200);
+  assert.equal(early.body.payment, null);
+  const f0 = (await cr.agent.post('/api/v1/me/invoice-files').set('Content-Type', 'application/pdf').send(pdf).expect(201)).body.id;
+  await cr.agent.put(`/api/v1/me/applications/${appId}/invoice`).send({ ...details, file_id: f0 }).expect(409);
+
+  // Noa approves the video → email asking for the invoice
+  outbox.length = 0;
+  await admin.post('/api/v1/admin/applications/bulk').send({ ids: [appId], status: 'completed' }).expect(200);
+  assert.equal(outbox.length, 1);
+  assert.match(outbox[0].subject, /הסרטון אושר/);
+  assert.ok(outbox[0].text.includes(`/c/${c.slug}`));
+
+  const page = await cr.agent.get(`/api/v1/campaigns/${c.slug}`).expect(200);
+  assert.deepEqual(page.body.payment, { paid_at: null, invoice: null, saved_bank: null });
+
+  // Only real PDFs/images; the file and the details are both required
+  await cr.agent.post('/api/v1/me/invoice-files').set('Content-Type', 'application/pdf').send(Buffer.from('<html>')).expect(400);
+  const missing = await cr.agent.put(`/api/v1/me/applications/${appId}/invoice`).send(details).expect(400);
+  assert.ok(missing.body.fields.file);
+  const bad = await cr.agent.put(`/api/v1/me/applications/${appId}/invoice`).send({ ...details, file_id: f0, branch: 'abc' }).expect(400);
+  assert.ok(bad.body.fields.branch);
+  // Another creator can't use her application or her file
+  await other.agent.put(`/api/v1/me/applications/${appId}/invoice`).send({ ...details, file_id: f0 }).expect(404);
+
+  // One-time: bank details are NOT saved to the profile
+  outbox.length = 0;
+  await cr.agent.put(`/api/v1/me/applications/${appId}/invoice`).send({ ...details, file_id: f0 }).expect(200);
+  assert.equal(outbox.length, 1); // Noa is told
+  assert.match(outbox[0].subject, /חשבונית חדשה/);
+  let pay = (await cr.agent.get(`/api/v1/campaigns/${c.slug}`).expect(200)).body.payment;
+  assert.equal(pay.saved_bank, null);
+  assert.equal(pay.invoice.amount_ils, 450);
+  assert.equal(pay.invoice.account_number, '123456');
+  // The signed link serves the file; a tampered one doesn't
+  const file = await agent().get(pay.invoice.file_url).expect(200);
+  assert.equal(file.headers['content-type'], 'application/pdf');
+  await agent().get(pay.invoice.file_url.replace(/sig=./, 'sig=x')).expect(403);
+
+  // Replace with "save to my profile" → prefilled next time; can be deleted
+  const f1 = (await cr.agent.post('/api/v1/me/invoice-files?name=inv.pdf').set('Content-Type', 'application/pdf').send(pdf).expect(201)).body.id;
+  outbox.length = 0;
+  await cr.agent.put(`/api/v1/me/applications/${appId}/invoice`).send({ ...details, amount_ils: 500, file_id: f1, save_bank: true }).expect(200);
+  assert.equal(outbox.length, 0); // replacing doesn't email Noa again
+  pay = (await cr.agent.get(`/api/v1/campaigns/${c.slug}`).expect(200)).body.payment;
+  assert.deepEqual(pay.saved_bank, bank);
+  assert.equal(pay.invoice.file_name, 'inv.pdf');
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM invoice_files WHERE id = $1', [f0])).rows[0].n, 0);
+
+  // Noa sees it in payments and on the campaign
+  const list = (await admin.get('/api/v1/admin/payments').expect(200)).body.payments;
+  const p = list.find((x) => x.id === appId);
+  assert.equal(p.invoice.amount_ils, 500);
+  assert.equal(p.paid_at, null);
+  const apps = (await admin.get(`/api/v1/admin/campaigns/${c.id}/applications`).expect(200)).body.applications;
+  assert.equal(apps.find((a) => a.id === appId).invoice.bank_name, 'לאומי');
+  // creators can't see the payments list
+  await cr.agent.get('/api/v1/admin/payments').expect(403);
+
+  // Mark paid → email; then the invoice is locked
+  outbox.length = 0;
+  await admin.post(`/api/v1/admin/applications/${appId}/paid`).send({ paid: true }).expect(200);
+  assert.equal(outbox.length, 1);
+  assert.match(outbox[0].subject, /הועבר/);
+  assert.ok(outbox[0].text.includes('₪500'));
+  await cr.agent.put(`/api/v1/me/applications/${appId}/invoice`).send(details).expect(409);
+  const mine = (await cr.agent.get('/api/v1/me/applications').expect(200)).body.applications.find((a) => a.id === appId);
+  assert.ok(mine.paid_at);
+  assert.equal(mine.has_invoice, true);
+
+  await cr.agent.delete('/api/v1/me/bank').expect(200);
+  assert.equal((await cr.agent.get(`/api/v1/campaigns/${c.slug}`).expect(200)).body.payment.saved_bank, null);
+});
+
+test('payments: barter campaigns need no invoice', async () => {
+  const cr = await makeCreator({ admin });
+  const c = (await admin.post('/api/v1/admin/campaigns').send(campaignBody({ title: 'בארטר', type: 'barter' })).expect(201)).body.campaign;
+  const appId = (await cr.agent.post(`/api/v1/campaigns/${c.slug}/apply`).send({}).expect(201)).body.application.id;
+  outbox.length = 0;
+  await admin.patch(`/api/v1/admin/applications/${appId}`).send({ status: 'completed' }).expect(200);
+  assert.equal(outbox.length, 0);
+  assert.equal((await cr.agent.get(`/api/v1/campaigns/${c.slug}`).expect(200)).body.payment, null);
+  await admin.post(`/api/v1/admin/applications/${appId}/paid`).send({ paid: true }).expect(409);
+  assert.ok(!(await admin.get('/api/v1/admin/payments').expect(200)).body.payments.some((x) => x.id === appId));
+});

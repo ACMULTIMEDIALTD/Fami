@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { z } from 'zod';
 import { one, query, tx } from '../db.js';
 import { config } from '../config.js';
@@ -8,6 +8,8 @@ import { getCreatorProfile } from '../lib/creators.js';
 import { logEvent } from '../lib/events.js';
 import { mails } from '../lib/mailer.js';
 import { registerDevice } from '../lib/push.js';
+import { sniffDocument } from '../lib/images.js';
+import { DOC_TYPES } from '../lib/payments.js';
 
 const router = Router();
 router.use(requireRole('creator'));
@@ -156,7 +158,8 @@ router.post('/devices', async (req, res) => {
 
 router.get('/applications', async (req, res) => {
   const { rows } = await query(
-    `SELECT a.id, a.status, a.message, a.applied_at, a.decided_at,
+    `SELECT a.id, a.status, a.message, a.applied_at, a.decided_at, a.paid_at,
+            EXISTS (SELECT 1 FROM invoices i WHERE i.application_id = a.id) AS has_invoice,
             c.slug, c.title, c.brand_display_name, c.type, c.status AS campaign_status,
             c.deadline_apply, c.deadline_publish
      FROM applications a JOIN campaigns c ON c.id = a.campaign_id
@@ -165,6 +168,87 @@ router.get('/applications', async (req, res) => {
     [req.user.id],
   );
   res.json({ applications: rows });
+});
+
+// ---------- invoices (after Noa approves the video) ----------
+
+/** Forget the bank details saved in her profile (the ones on past invoices stay, as payment records). */
+router.delete('/bank', async (req, res) => {
+  await query(
+    `UPDATE creators SET bank_account_holder = NULL, bank_name = NULL, bank_branch = NULL, bank_account_number = NULL, updated_at = now()
+     WHERE user_id = $1`,
+    [req.user.id],
+  );
+  res.json({ ok: true });
+});
+
+const MAX_INVOICE_BYTES = 8 * 1024 * 1024;
+const INVOICE_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+
+/** Step 1: upload the file itself (raw body). Step 2 (PUT below) attaches it with the details. */
+router.post('/invoice-files', express.raw({ type: INVOICE_TYPES, limit: MAX_INVOICE_BYTES }), async (req, res) => {
+  const buf = Buffer.isBuffer(req.body) ? req.body : null;
+  const mime = buf && sniffDocument(buf);
+  if (!mime) throw new HttpError(400, 'invalid_file', 'אפשר להעלות PDF או תמונה (JPG, PNG)');
+  const name = typeof req.query.name === 'string' ? req.query.name.slice(0, 200) : null;
+  const f = await one(
+    'INSERT INTO invoice_files (user_id, mime, file_name, data, bytes) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+    [req.user.id, mime, name, buf, buf.length],
+  );
+  res.status(201).json({ id: f.id });
+});
+
+const req1 = (max = 100) => z.string().trim().min(1, 'שדה חובה').max(max);
+const invoiceSchema = z.object({
+  file_id: z.string().uuid().optional(),
+  doc_type: z.enum(Object.keys(DOC_TYPES), { message: 'יש לבחור סוג מסמך' }),
+  amount_ils: z.preprocess((v) => (empty(v) ? undefined : Number(v)), z.number({ message: 'יש להזין סכום' }).positive('יש להזין סכום').max(1_000_000)),
+  account_holder: req1(),
+  bank_name: req1(),
+  branch: z.string().trim().regex(/^\d{1,4}$/, 'מספר סניף לא תקין'),
+  account_number: z.string().trim().regex(/^[\d-]{2,20}$/, 'מספר חשבון לא תקין'),
+  save_bank: z.boolean().default(false), // keep the bank details in her profile for next time
+});
+
+router.put('/applications/:id/invoice', async (req, res) => {
+  if (!z.string().uuid().safeParse(req.params.id).success) throw new HttpError(404, 'application_not_found');
+  const data = parse(invoiceSchema, req.body);
+  const app = await one(
+    `SELECT a.id, a.status, a.paid_at, c.type, c.title, c.slug, cr.full_name,
+            (SELECT file_id FROM invoices WHERE application_id = a.id) AS current_file
+     FROM applications a JOIN campaigns c ON c.id = a.campaign_id JOIN creators cr ON cr.user_id = a.creator_id
+     WHERE a.id = $1 AND a.creator_id = $2`,
+    [req.params.id, req.user.id],
+  );
+  if (!app) throw new HttpError(404, 'application_not_found');
+  if (app.status !== 'completed' || app.type === 'barter') {
+    throw new HttpError(409, 'invoice_not_open', 'אפשר להעלות חשבונית רק אחרי שנועה אישרה את הסרטון');
+  }
+  if (app.paid_at) throw new HttpError(409, 'already_paid', 'התשלום כבר בוצע. לשינוי פני לנועה.');
+  const fileId = data.file_id || app.current_file;
+  if (!fileId) throw new HttpError(400, 'validation_error', 'יש לצרף את החשבונית', { fields: { file: 'יש לצרף את החשבונית' } });
+  if (data.file_id && !(await one('SELECT 1 FROM invoice_files WHERE id = $1 AND user_id = $2', [data.file_id, req.user.id]))) {
+    throw new HttpError(400, 'validation_error', 'הקובץ לא נמצא, נסי להעלות שוב', { fields: { file: 'הקובץ לא נמצא, נסי להעלות שוב' } });
+  }
+  await query(
+    `INSERT INTO invoices (application_id, file_id, doc_type, amount_ils, account_holder, bank_name, branch, account_number)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT (application_id) DO UPDATE SET file_id = $2, doc_type = $3, amount_ils = $4, account_holder = $5,
+       bank_name = $6, branch = $7, account_number = $8, updated_at = now()`,
+    [app.id, fileId, data.doc_type, data.amount_ils, data.account_holder, data.bank_name, data.branch, data.account_number],
+  );
+  if (data.save_bank) {
+    await query(
+      `UPDATE creators SET bank_account_holder = $2, bank_name = $3, bank_branch = $4, bank_account_number = $5, updated_at = now()
+       WHERE user_id = $1`,
+      [req.user.id, data.account_holder, data.bank_name, data.branch, data.account_number],
+    );
+  }
+  // The replaced file isn't needed anymore
+  if (app.current_file && app.current_file !== fileId) await query('DELETE FROM invoice_files WHERE id = $1', [app.current_file]);
+  await logEvent(req.user.id, 'invoice_uploaded', { application_id: app.id, replaced: !!app.current_file });
+  if (!app.current_file) await mails.invoiceUploaded({ name: app.full_name, title: app.title, amount: data.amount_ils, docType: DOC_TYPES[data.doc_type] });
+  res.json({ ok: true });
 });
 
 export default router;

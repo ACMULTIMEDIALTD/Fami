@@ -1,5 +1,5 @@
 // Example data for the demo build. All names, handles and brands are invented.
-export const TERMS_VERSION = '2026-10-v1';
+export const TERMS_VERSION = '2026-10-v2';
 
 const NICHES = ['אופנה', 'יופי', 'אמהות', 'אוכל', 'לייפסטייל', 'כושר', 'בית', 'טיולים', 'טכנולוגיה', 'פיננסים', 'אחר'];
 const REGIONS = ['צפון', 'חיפה והקריות', 'השרון', 'מרכז', 'תל אביב', 'ירושלים', 'שפלה', 'דרום', 'אילת'];

@@ -5,6 +5,7 @@ import { useAuth, Spinner } from '../auth.jsx';
 import { PLATFORMS, REJECTED_SOFT, fmtNum, fmtDate, fmtDateTime } from '../labels.js';
 import { ErrorBox, TypeBadge, AppStatusChip, CampaignStatusChip, ConfirmButton } from '../components/ui.jsx';
 import { DeadlineText } from '../components/CampaignCard.jsx';
+import InvoiceBox from '../components/InvoiceBox.jsx';
 
 function ApplyBox({ slug, onApplied }) {
   const [open, setOpen] = useState(false);
@@ -66,7 +67,7 @@ export default function Campaign() {
   if (error) return <ErrorBox error={error} />;
   if (!data) return <Spinner />;
 
-  const { campaign: c, my_application: app, eligibility: elig, selected } = data;
+  const { campaign: c, my_application: app, eligibility: elig, selected, payment } = data;
   const isAdmin = me.user.role === 'admin';
 
   return (
@@ -94,9 +95,11 @@ export default function Campaign() {
         </dl>
       </div>
 
+      {payment && <InvoiceBox applicationId={app.id} payment={payment} onChange={load} />}
+
       {(selected || isAdmin) && (
         <div className="card selected-card">
-          {selected && <h2 className="celebrate">נבחרת 🎉</h2>}
+          {selected && <h2 className="celebrate">{app?.status === 'completed' ? 'הבריף ותנאי התשלום' : 'נבחרת 🎉'}</h2>}
           {isAdmin && <p className="muted">תצוגת מנהלת: הבריף ותנאי התשלום מוצגים רק ליוצרות שנבחרו.</p>}
           {c.payment_note && (<><h3>תנאי תשלום</h3><p className="pre">{c.payment_note}</p></>)}
           <h3>הבריף המלא</h3>

@@ -6,6 +6,7 @@ import { requireAuth } from '../lib/auth.js';
 import { checkEligibility } from '../lib/eligibility.js';
 import { publicCampaign, lookupNames, eligibilityCreator } from '../lib/campaigns.js';
 import { logEvent } from '../lib/events.js';
+import { needsPayment, paymentFor } from '../lib/payments.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -73,6 +74,7 @@ router.get('/:slug', async (req, res) => {
     campaign,
     my_application: c.my_application,
     selected,
+    payment: needsPayment(c.my_application, c.type) ? await paymentFor(req.user.id, c.my_application.id) : null,
     eligibility: isAdmin ? null : checkEligibility({ user: req.user, creator, campaign: c, application: c.my_application, names }),
   });
 });

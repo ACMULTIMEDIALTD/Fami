@@ -23,6 +23,7 @@ import AdminCampaigns from './pages/admin/AdminCampaigns.jsx';
 import AdminCampaignForm from './pages/admin/AdminCampaignForm.jsx';
 import AdminCampaign from './pages/admin/AdminCampaign.jsx';
 import AdminBrands from './pages/admin/AdminBrands.jsx';
+import AdminPayments from './pages/admin/AdminPayments.jsx';
 
 const creator = (el) => <RequireAuth role="creator">{el}</RequireAuth>;
 const admin = (el) => <RequireAuth role="admin">{el}</RequireAuth>;
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="/admin/campaigns/new" element={admin(<AdminCampaignForm />)} />
         <Route path="/admin/campaigns/:id/edit" element={admin(<AdminCampaignForm />)} />
         <Route path="/admin/campaigns/:id" element={admin(<AdminCampaign />)} />
+        <Route path="/admin/payments" element={admin(<AdminPayments />)} />
         <Route path="/admin/brands" element={admin(<AdminBrands />)} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
