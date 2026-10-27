@@ -67,11 +67,11 @@ test('magic link login', async () => {
   const again = await agent().post('/api/v1/auth/magic').send({ token }).expect(410);
   assert.equal(again.body.error, 'link_expired');
 
-  // legacy GET link still redirects
+  // A plain GET (e.g. an email security scanner opening the link) can't use up a token
   await agent().post('/api/v1/auth/login').send({ email }).expect(200);
   const t2 = outbox.at(-1).text.match(/\/m\/([\w-]+)/)[1];
-  const r = await agent().get(`/api/v1/auth/magic/${t2}`).expect(302);
-  assert.equal(r.headers.location, 'http://app.test/dashboard');
+  await agent().get(`/api/v1/auth/magic/${t2}`).expect(404);
+  await agent().post('/api/v1/auth/magic').send({ token: t2 }).expect(200);
 });
 
 test('campaign flow: eligibility, visibility, select, close', async () => {
@@ -337,7 +337,8 @@ test('admin resets a creator password', async () => {
   assert.match(r.body.password, /^[a-z2-9]{10}$/);
   await agent().post('/api/v1/auth/login').send({ email: c.email, password: 'password123' }).expect(401);
   await agent().post('/api/v1/auth/login').send({ email: c.email, password: r.body.password }).expect(200);
-  await c.agent.post(`/api/v1/admin/creators/${c.id}/reset-password`).expect(403);
+  // The reset signs her out everywhere (an old session/token stops working)
+  await c.agent.get('/api/v1/auth/me').expect(401);
 });
 
 test('campaign images: upload, signed URL, members only', async () => {
@@ -708,4 +709,35 @@ test('account deletion: removes her data, keeps invoices in the payment archive,
   const file = await agent().get(arc.file_url).expect(200);
   assert.equal(file.headers['content-type'], 'application/pdf');
   await agent().get(arc.file_url.replace('/archive/', '/invoice/')).expect(403);
+});
+
+test('security: password change ends other sessions, admin password survives restarts, client-ip', async () => {
+  const c = await makeCreator({ admin });
+  const other = agent(); // a second phone
+  await other.post('/api/v1/auth/login').send({ email: c.email, password: 'password123' }).expect(200);
+  const app = await agent().post('/api/v1/auth/login').set('X-Client', 'app').send({ email: c.email, password: 'password123' }).expect(200);
+
+  const r = await c.agent.post('/api/v1/auth/password').send({ password: 'brand-new-pass1', current_password: 'password123' }).expect(200);
+  await c.agent.get('/api/v1/auth/me').expect(200); // this device stays signed in
+  await other.get('/api/v1/auth/me').expect(401);
+  await agent().get('/api/v1/auth/me').set('Authorization', `Bearer ${app.body.token}`).expect(401);
+  // the app gets a fresh token back with the change
+  const fresh = await agent().post('/api/v1/auth/password').set('X-Client', 'app')
+    .set('Authorization', `Bearer ${(await agent().post('/api/v1/auth/login').set('X-Client', 'app').send({ email: c.email, password: 'brand-new-pass1' })).body.token}`)
+    .send({ password: 'brand-new-pass2', current_password: 'brand-new-pass1' }).expect(200);
+  await agent().get('/api/v1/auth/me').set('Authorization', `Bearer ${fresh.body.token}`).expect(200);
+  assert.ok(r.body.ok);
+
+  // A token signed with another algorithm/secret is ignored
+  await agent().get('/api/v1/auth/me').set('Authorization', 'Bearer eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4In0.').expect(401);
+
+  // Re-running the seed (every deploy) keeps the password Noa set
+  const { seed } = await import('../src/seed.js');
+  await admin.post('/api/v1/auth/password').send({ password: 'noa-own-password', current_password: 'admin-password' }).expect(200);
+  await seed({ log: () => {} });
+  await agent().post('/api/v1/auth/login').send({ email: 'admin@test.local', password: 'admin-password' }).expect(401);
+  await agent().post('/api/v1/auth/login').send({ email: 'admin@test.local', password: 'noa-own-password' }).expect(200);
+
+  const ip = await agent().get('/api/v1/public/client-ip').expect(200);
+  assert.ok(ip.body.ip);
 });

@@ -1,4 +1,5 @@
 import express, { Router } from 'express';
+import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 import { one, query, tx } from '../db.js';
 import { config } from '../config.js';
@@ -279,8 +280,17 @@ router.delete('/bank', async (req, res) => {
 const MAX_INVOICE_BYTES = 8 * 1024 * 1024;
 const INVOICE_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
+// Files are stored in the database: cap uploads per creator so nobody can fill it up
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: config.isTest ? 10_000 : 30,
+  legacyHeaders: false,
+  keyGenerator: (req) => `user:${req.user.id}`,
+  message: { error: 'rate_limited', message: 'יותר מדי העלאות, נסי שוב בעוד שעה' },
+});
+
 /** Step 1: upload the file itself (raw body). Step 2 (PUT below) attaches it with the details. */
-router.post('/invoice-files', express.raw({ type: INVOICE_TYPES, limit: MAX_INVOICE_BYTES }), async (req, res) => {
+router.post('/invoice-files', uploadLimiter, express.raw({ type: INVOICE_TYPES, limit: MAX_INVOICE_BYTES }), async (req, res) => {
   const buf = Buffer.isBuffer(req.body) ? req.body : null;
   const mime = buf && sniffDocument(buf);
   if (!mime) throw new HttpError(400, 'invalid_file', 'אפשר להעלות PDF או תמונה (JPG, PNG)');
@@ -288,6 +298,12 @@ router.post('/invoice-files', express.raw({ type: INVOICE_TYPES, limit: MAX_INVO
   const f = await one(
     'INSERT INTO invoice_files (user_id, mime, file_name, data, bytes) VALUES ($1, $2, $3, $4, $5) RETURNING id',
     [req.user.id, mime, name, buf, buf.length],
+  );
+  // Files uploaded but never attached to an invoice (an abandoned form) are removed after a day
+  await query(
+    `DELETE FROM invoice_files f WHERE f.user_id = $1 AND f.created_at < now() - interval '1 day'
+       AND NOT EXISTS (SELECT 1 FROM invoices i WHERE i.file_id = f.id)`,
+    [req.user.id],
   );
   res.status(201).json({ id: f.id });
 });

@@ -15,7 +15,10 @@ const cookieOpts = () => ({
 
 // `m` records how the session started (password / code / magic / signup), so a fresh sign-in by
 // email code can set a new password without knowing the old one ("forgot password").
-const signToken = (user, method) => jwt.sign({ sub: user.id, m: method }, config.jwtSecret, { expiresIn: Math.floor(MAX_AGE_MS / 1000) });
+// `v` is the user's session_version: changing the password bumps it and ends all older sessions.
+const signToken = (userId, method, version) => jwt.sign(
+  { sub: userId, m: method, v: version }, config.jwtSecret, { algorithm: 'HS256', expiresIn: Math.floor(MAX_AGE_MS / 1000) },
+);
 
 /** The iPhone/Android app sends this header. It keeps its session as a bearer token, not a cookie. */
 export const isApp = (req) => req.get('X-Client') === 'app';
@@ -24,8 +27,9 @@ export const isApp = (req) => req.get('X-Client') === 'app';
  * Starts a session. Browsers get an httpOnly cookie; the native app gets the token back
  * (returned value, to put in the JSON response) because WebView cookies to another host are unreliable.
  */
-export function setSession(req, res, user, method) {
-  const token = signToken(user, method);
+export async function setSession(req, res, user, method) {
+  const { session_version: version } = await one('SELECT session_version FROM users WHERE id = $1', [user.id]);
+  const token = signToken(user.id, method, version);
   res.cookie(COOKIE, token, { ...cookieOpts(), maxAge: MAX_AGE_MS });
   return isApp(req) ? token : undefined;
 }
@@ -43,9 +47,14 @@ export async function loadUser(req, _res, next) {
   const token = bearer || req.cookies?.[COOKIE];
   if (!token) return next();
   try {
-    const { sub, m, iat } = jwt.verify(token, config.jwtSecret);
-    req.user = await one('SELECT id, email, phone, role, status FROM users WHERE id = $1', [sub]);
-    req.auth = { method: m, issuedAt: iat * 1000 };
+    const { sub, m, v, iat } = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] });
+    const user = await one('SELECT id, email, phone, role, status, session_version FROM users WHERE id = $1', [sub]);
+    // Tokens from before a password change (or from before versions existed: v undefined → 0) are rejected
+    if (user && (v ?? 0) === user.session_version) {
+      delete user.session_version;
+      req.user = user;
+      req.auth = { method: m, issuedAt: iat * 1000 };
+    }
   } catch {
     // invalid/expired token → treat as anonymous
   }
