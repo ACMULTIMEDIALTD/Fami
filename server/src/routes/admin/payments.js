@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { query } from '../../db.js';
 import { INVOICE_COLUMNS, invoiceOut } from '../../lib/payments.js';
+import { invoiceFileUrl } from '../../lib/images.js';
 
 const router = Router();
 
@@ -19,7 +20,14 @@ router.get('/', async (_req, res) => {
      WHERE a.status = 'completed' AND c.type <> 'barter'
      ORDER BY a.paid_at DESC NULLS FIRST, i.uploaded_at ASC NULLS LAST, a.decided_at ASC`,
   );
+  const { rows: archive } = await query(
+    `SELECT id, creator_name, creator_email, campaign_title, doc_type, amount_ils, account_holder, bank_name, branch,
+            account_number, uploaded_at, paid_at, file_name, account_deleted_at
+     FROM payment_archive ORDER BY account_deleted_at DESC`,
+  );
   res.json({
+    // Invoices of creators who deleted their account (kept as payment records)
+    archive: archive.map((r) => ({ ...r, amount_ils: Number(r.amount_ils), file_url: invoiceFileUrl(r.id, 'arc') })),
     payments: rows.map((r) => ({
       id: r.id,
       approved_at: r.approved_at,

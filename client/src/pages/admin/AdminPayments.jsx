@@ -9,25 +9,27 @@ const TABS = [
   ['ready', 'לתשלום'],
   ['waiting', 'ממתינות לחשבונית'],
   ['paid', 'שולמו'],
+  ['archive', 'ארכיון'],
 ];
 const stateOf = (p) => (p.paid_at ? 'paid' : p.invoice ? 'ready' : 'waiting');
 const waLink = (phone, text) => `https://wa.me/972${phone.replace(/^0/, '')}?text=${encodeURIComponent(text)}`;
 
 export default function AdminPayments() {
   const [data, setData] = useState(null);
+  const [archive, setArchive] = useState([]);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('ready');
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(null);
 
-  const load = () => api.get('/admin/payments').then((r) => setData(r.payments)).catch(setError);
+  const load = () => api.get('/admin/payments').then((r) => { setData(r.payments); setArchive(r.archive || []); }).catch(setError);
   useEffect(() => { load(); }, []);
 
   const groups = useMemo(() => {
-    const g = { ready: [], waiting: [], paid: [] };
+    const g = { ready: [], waiting: [], paid: [], archive };
     for (const p of data || []) g[stateOf(p)].push(p);
     return g;
-  }, [data]);
+  }, [data, archive]);
 
   const setPaid = async (id, paid) => {
     setBusy(true);
@@ -58,7 +60,31 @@ export default function AdminPayments() {
         ))}
       </div>
 
-      {!rows.length ? (
+      {tab === 'archive' ? (
+        !archive.length ? <Empty>אין חשבוניות בארכיון.</Empty> : (
+          <div className="pay-list">
+            <p className="small muted">חשבוניות של יוצרות שמחקו את החשבון. נשמרות כמסמכי תשלום.</p>
+            {archive.map((a) => (
+              <div key={a.id} className="card pay-item">
+                <div className="row-inline">
+                  <b>{a.creator_name || a.creator_email}</b>
+                  <span className="muted">· {a.campaign_title}</span>
+                  <span className="small muted">· החשבון נמחק {fmtDate(a.account_deleted_at)}</span>
+                </div>
+                <div className="row-inline">
+                  <span>{DOC_TYPES[a.doc_type]}</span>
+                  <b>₪{fmtNum(a.amount_ils)}</b>
+                  {a.paid_at ? <span className="pay-chip done">שולם {fmtDate(a.paid_at)}</span> : <span className="pay-chip todo">לא שולם</span>}
+                </div>
+                <div className="bank">
+                  {a.account_holder} · {a.bank_name} · סניף <bdi dir="ltr">{a.branch}</bdi> · חשבון <bdi dir="ltr">{a.account_number}</bdi> · <bdi dir="ltr">{a.creator_email}</bdi>
+                </div>
+                <div className="row-inline"><a className="btn ghost sm" href={assetUrl(a.file_url)} target="_blank" rel="noreferrer">צפייה בחשבונית</a></div>
+              </div>
+            ))}
+          </div>
+        )
+      ) : !rows.length ? (
         <Empty>{tab === 'ready' ? 'אין חשבוניות שממתינות לתשלום.' : tab === 'waiting' ? 'כל היוצרות העלו חשבונית.' : 'עוד לא סומנו תשלומים.'}</Empty>
       ) : (
         <div className="pay-list">

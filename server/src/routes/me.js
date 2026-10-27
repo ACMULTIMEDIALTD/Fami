@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { one, query, tx } from '../db.js';
 import { config } from '../config.js';
 import { HttpError, parse } from '../lib/http.js';
-import { requireRole } from '../lib/auth.js';
+import { requireRole, clearSession } from '../lib/auth.js';
 import { getCreatorProfile } from '../lib/creators.js';
 import { logEvent } from '../lib/events.js';
 import { mails } from '../lib/mailer.js';
@@ -182,6 +182,43 @@ router.get('/applications', async (req, res) => {
     [req.user.id],
   );
   res.json({ applications: rows });
+});
+
+// ---------- account deletion (from the app or the site) ----------
+
+/**
+ * Deletes the account and all her data. Invoices are kept in payment_archive (tax records);
+ * Noa is told, including whether a payment is still open.
+ */
+router.delete('/account', async (req, res) => {
+  parse(z.object({ confirm: z.literal('מחיקה', { message: 'יש להקליד "מחיקה" לאישור' }) }), req.body);
+  const result = await tx(async (db) => {
+    const { rows: [who] } = await db.query(
+      `SELECT u.email, c.full_name FROM users u LEFT JOIN creators c ON c.user_id = u.id WHERE u.id = $1 FOR UPDATE OF u`,
+      [req.user.id],
+    );
+    const { rows: archived } = await db.query(
+      `INSERT INTO payment_archive (creator_name, creator_email, campaign_title, doc_type, amount_ils,
+         account_holder, bank_name, branch, account_number, uploaded_at, paid_at, file_mime, file_name, file_data)
+       SELECT $2, $3, c.title, i.doc_type, i.amount_ils, i.account_holder, i.bank_name, i.branch, i.account_number,
+              i.uploaded_at, a.paid_at, f.mime, f.file_name, f.data
+       FROM invoices i JOIN applications a ON a.id = i.application_id JOIN campaigns c ON c.id = a.campaign_id
+       JOIN invoice_files f ON f.id = i.file_id
+       WHERE a.creator_id = $1
+       RETURNING paid_at`,
+      [req.user.id, who.full_name, who.email],
+    );
+    // Invoices first: their files would otherwise be removed before the rows pointing at them
+    await db.query('DELETE FROM invoices WHERE application_id IN (SELECT id FROM applications WHERE creator_id = $1)', [req.user.id]);
+    await db.query('DELETE FROM events WHERE user_id = $1', [req.user.id]);
+    await db.query('DELETE FROM users WHERE id = $1', [req.user.id]); // cascades to profile, applications, devices…
+    await db.query(`INSERT INTO events (user_id, type, payload) VALUES (NULL, 'account_deleted', $1)`,
+      [{ invoices_archived: archived.length }]);
+    return { ...who, archived: archived.length, unpaid: archived.filter((r) => !r.paid_at).length };
+  });
+  clearSession(res);
+  await mails.accountDeleted(result);
+  res.json({ ok: true });
 });
 
 // ---------- shipping address (selected for a campaign with a product) ----------

@@ -217,6 +217,19 @@ export const mails = {
     });
   },
 
+  accountDeleted: ({ full_name: name, email, archived, unpaid }) => sendMail({
+    to: config.notifyEmail,
+    subject: `יוצרת מחקה את החשבון: ${name || email}`,
+    text: `${name || ''} (${email}) מחקה את החשבון שלה.${archived ? ` ${archived} חשבוניות נשמרו בארכיון התשלומים${unpaid ? `, מתוכן ${unpaid} שעוד לא שולמו` : ''}.` : ''}`,
+    html: layout({
+      preheader: `${name || email} מחקה את החשבון שלה בקהילה.`,
+      title: 'יוצרת מחקה את החשבון',
+      body: `${details([row('שם', `<b>${esc(name || '—')}</b>`), row('מייל', `<span dir="ltr">${esc(email)}</span>`)])}
+        <p style="margin-top:14px">הפרופיל, ההגשות והנתונים שלה נמחקו.${archived ? ` <b>${archived} חשבוניות</b> נשמרו בארכיון התשלומים${unpaid ? `, ומתוכן <b>${unpaid} עוד לא שולמו</b>` : ''}.` : ''}</p>`,
+      cta: archived ? { label: 'לארכיון התשלומים', url: `${config.appUrl}/admin/payments` } : undefined,
+    }),
+  }),
+
   newSignup: (name, email) => {
     const url = `${config.appUrl}/admin/creators?status=pending`;
     return sendMail({

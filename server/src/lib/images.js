@@ -17,9 +17,10 @@ export function imageUrl(id) {
 }
 
 /** Invoices hold bank details, so their links expire after an hour (and are only given to Noa and the creator). */
-export function invoiceFileUrl(id) {
+export function invoiceFileUrl(id, kind = 'inv') {
   const exp = Math.floor(Date.now() / 1000) + 3600;
-  return `/api/v1/images/invoice/${id}?exp=${exp}&sig=${sign(id, exp, 'inv')}`;
+  const path = kind === 'arc' ? 'archive' : 'invoice';
+  return `/api/v1/images/${path}/${id}?exp=${exp}&sig=${sign(id, exp, kind)}`;
 }
 
 export function verifyImageSig(id, exp, sig, kind = 'img') {

@@ -6,12 +6,15 @@ import { verifyImageSig } from '../lib/images.js';
 const router = Router();
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-router.get('/invoice/:id', async (req, res) => {
+// Invoices, and invoices kept from deleted accounts (payment_archive)
+const serveDocument = (kind) => async (req, res) => {
   const { id } = req.params;
-  if (!UUID.test(id) || !verifyImageSig(id, req.query.exp, req.query.sig, 'inv')) {
+  if (!UUID.test(id) || !verifyImageSig(id, req.query.exp, req.query.sig, kind === 'archive' ? 'arc' : 'inv')) {
     throw new HttpError(403, 'forbidden');
   }
-  const f = await one('SELECT mime, file_name, data FROM invoice_files WHERE id = $1', [id]);
+  const f = await one(kind === 'archive'
+    ? 'SELECT file_mime AS mime, file_name, file_data AS data FROM payment_archive WHERE id = $1'
+    : 'SELECT mime, file_name, data FROM invoice_files WHERE id = $1', [id]);
   if (!f) throw new HttpError(404, 'not_found');
   const ext = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[f.mime];
   const name = f.file_name || `invoice.${ext}`;
@@ -20,7 +23,9 @@ router.get('/invoice/:id', async (req, res) => {
   res.set('Content-Security-Policy', 'sandbox'); // a PDF is opened as a document; no scripts
   res.set('Cache-Control', 'private, no-store');
   res.send(f.data);
-});
+};
+router.get('/invoice/:id', serveDocument('invoice'));
+router.get('/archive/:id', serveDocument('archive'));
 
 // No login check here: access is granted by the signed, expiring URL (see lib/images.js)
 router.get('/:id', async (req, res) => {
