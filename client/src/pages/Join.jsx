@@ -65,6 +65,10 @@ export default function Join() {
         <img src={logoUrl} alt="" width="120" height="120" className="hero-logo sm" />
         <h1>תודה! 💛</h1>
         <p>נועה מאשרת חברות תוך 48 שעות. נעדכן אותך במייל.</p>
+        <p className="spam-tip">
+          📬 המיילים שלנו מגיעים מ-<bdi dir="ltr">club@mail.noaavital.co.il</bdi>.
+          אם לא רואים אותם, כדאי לבדוק בתיקיית הספאם ולסמן ״לא ספאם״, כדי שהמיילים הבאים יגיעו לתיבה הראשית.
+        </p>
         <Link className="btn primary" to="/dashboard">לאזור האישי</Link>
       </div>
     );

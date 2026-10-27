@@ -55,7 +55,7 @@ export default function Login() {
       <div className="narrow card center">
         <h1>בדקי את המייל 💌</h1>
         <p>אם <b dir="ltr">{email}</b> רשום אצלנו, שלחנו אלייך קישור כניסה. הקישור תקף ל-30 דקות.</p>
-        <p className="muted">לא הגיע? כדאי לבדוק גם בתיקיית הספאם.</p>
+        <p className="muted">לא הגיע? כדאי לבדוק בתיקיית הספאם ולסמן ״לא ספאם״, כדי שהמייל הבא יגיע לתיבה הראשית.</p>
         <button className="btn ghost" onClick={() => setSent(false)}>שליחה מחדש</button>
       </div>
     );

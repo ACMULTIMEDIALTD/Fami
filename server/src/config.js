@@ -31,6 +31,8 @@ export const config = {
   mailEnabled: !!env.SMTP_URL || !isProd,
   mailFrom: env.MAIL_FROM || 'no-reply@example.com',
   notifyEmail: env.NOTIFY_EMAIL || env.ADMIN_EMAIL || '',
+  // Where creators' replies to our emails go (a real inbox helps deliverability). Defaults to Noa.
+  mailReplyTo: env.MAIL_REPLY_TO || env.NOTIFY_EMAIL || env.ADMIN_EMAIL || '',
   // Firebase service-account JSON (one line) — enables push notifications to the app
   firebaseServiceAccount: env.FIREBASE_SERVICE_ACCOUNT || '',
   // Apple push (APNs) for the iPhone app: an auth key (.p8) from developer.apple.com → Keys

@@ -430,3 +430,14 @@ test('sign-in link request works when the page sends next: null', async () => {
   assert.match(outbox[0].html, /כניסה לקהילה/);
   assert.match(outbox[0].html, /\/accessibility/);
 });
+
+test('emails carry a Reply-To: Noa for creators, the brand for brand inquiries', async () => {
+  const { email } = await makeCreator({ admin });
+  outbox.length = 0;
+  await agent().post('/api/v1/auth/login').send({ email }).expect(200);
+  assert.equal(outbox[0].replyTo, 'admin@test.local');
+  outbox.length = 0;
+  await agent().post('/api/v1/public/brand-inquiry')
+    .send({ name: 'רון', brand: 'מותג', phone: '0501112222', email: 'ron@brand.co.il', message: '' }).expect(200);
+  assert.equal(outbox[0].replyTo, 'ron@brand.co.il');
+});

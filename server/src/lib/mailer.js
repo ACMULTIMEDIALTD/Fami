@@ -4,9 +4,14 @@ import { config } from '../config.js';
 const transport = config.smtpUrl ? nodemailer.createTransport(config.smtpUrl) : null;
 export const outbox = []; // populated in tests / when no SMTP is configured
 
-export async function sendMail({ to, subject, html, text }) {
+/**
+ * replyTo: who gets it when the recipient hits "reply". Creator emails → Noa (config.mailReplyTo);
+ * brand inquiries → the brand, so Noa can just reply.
+ */
+export async function sendMail({ to, subject, html, text, replyTo = config.mailReplyTo }) {
   if (!to) return;
   const msg = { from: config.mailFrom, to, subject, html, text };
+  if (replyTo && replyTo !== to) msg.replyTo = replyTo;
   if (!transport) {
     outbox.push(msg);
     if (outbox.length > 50) outbox.shift();
@@ -151,6 +156,7 @@ export const mails = {
     const url = `${config.appUrl}/admin/creators?status=pending`;
     return sendMail({
       to: config.notifyEmail,
+      replyTo: email,
       subject: `יוצרת חדשה ממתינה לאישור: ${name}`,
       text: `${name} (${email}) השלימה הרשמה.\n${url}`,
       html: layout({
@@ -164,6 +170,7 @@ export const mails = {
 
   brandInquiry: (data) => sendMail({
     to: config.notifyEmail,
+    replyTo: data.email,
     subject: `פנייה ממותג: ${data.brand}`,
     text: Object.entries(data).map(([k, v]) => `${k}: ${v ?? ''}`).join('\n'),
     html: layout({
