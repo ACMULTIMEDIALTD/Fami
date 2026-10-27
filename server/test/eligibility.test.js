@@ -19,7 +19,9 @@ test('reason codes', () => {
   assert.equal(check({ campaign: { ...campaign, status: 'closed' } }).reason, 'campaign_closed');
   assert.equal(check({ campaign: { ...campaign, deadline_apply: new Date(Date.now() - 1) } }).reason, 'deadline_passed');
   assert.equal(check({ campaign: { ...campaign, type: 'barter' } }).reason, 'not_open_to_barter');
-  assert.equal(check({ campaign: { ...campaign, type: 'hybrid' } }).ok, true);
+  assert.equal(check({ campaign: { ...campaign, type: 'hybrid' } }).reason, 'missing_address');
+  const withAddress = { ...creator, address_street: 'הרצל 1', address_city: 'חיפה' };
+  assert.equal(check({ creator: withAddress, campaign: { ...campaign, type: 'hybrid' } }).ok, true);
   assert.equal(check({ application: { status: 'applied' } }).reason, 'already_applied');
   assert.equal(check({ application: { status: 'withdrawn' } }).ok, true);
   assert.equal(check({ campaign: { ...campaign, region_ids: [1, 2] } }).reason, 'region');

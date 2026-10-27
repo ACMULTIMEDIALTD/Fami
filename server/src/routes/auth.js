@@ -214,7 +214,7 @@ router.post('/password', limiter, requireAuth, async (req, res) => {
 
 router.get('/me', requireAuth, async (req, res) => {
   const creator = await one(
-    'SELECT full_name, terms_version, terms_accepted_at FROM creators WHERE user_id = $1',
+    'SELECT full_name, terms_version, terms_accepted_at, open_to_barter, address_street FROM creators WHERE user_id = $1',
     [req.user.id],
   );
   res.json({
@@ -224,6 +224,8 @@ router.get('/me', requireAuth, async (req, res) => {
       : null,
     needs_profile: req.user.role === 'creator' && !creator,
     needs_terms: !!creator && creator.terms_version !== config.termsVersion,
+    // Signed up before the address field existed (or removed it) while open to barter
+    needs_address: !!creator && creator.open_to_barter && !creator.address_street,
     terms: { version: config.termsVersion, pdf_url: config.termsPdfUrl },
     whatsapp_group_url: req.user.status === 'active' ? config.whatsappGroupUrl || null : null,
     has_password: !!(await one('SELECT password_hash FROM users WHERE id = $1', [req.user.id])).password_hash,

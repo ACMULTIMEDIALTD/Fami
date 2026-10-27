@@ -48,6 +48,12 @@ export default function Dashboard() {
     <div>
       <InstallHint />
       <StatusBanner me={me} />
+      {me.needs_address && (
+        <div className="alert">
+          📦 <b>חסרה כתובת למשלוח מוצרים.</b> בלי כתובת אי אפשר להגיש מועמדות לקמפיינים של בארטר ומשולבים.{' '}
+          <Link to="/me">להוספת כתובת</Link>
+        </div>
+      )}
       <ErrorBox error={error} />
       {!board ? <Spinner /> : (
         <>

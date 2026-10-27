@@ -9,6 +9,7 @@ import { toCsv, sendCsv } from '../../lib/csv.js';
 import { logEvent } from '../../lib/events.js';
 import { mails } from '../../lib/mailer.js';
 import { sendPush } from '../../lib/push.js';
+import { formatAddress } from '../../lib/address.js';
 
 const router = Router();
 
@@ -61,7 +62,7 @@ async function listCreators(q) {
             ${MAX_F} AS max_followers,
             c.audience_gender, c.audience_age_min, c.audience_age_max, c.audience_sector,
             c.open_to_paid, c.open_to_barter, c.open_to_events, c.open_to_affiliate,
-            c.billing_status,
+            c.billing_status, c.address_street, c.address_apt, c.address_city, c.address_zip,
             c.tier, c.internal_rating, c.admin_notes, c.terms_version, c.terms_accepted_at,
             COALESCE((SELECT array_agg(n.name ORDER BY n.sort) FROM creator_niches cn JOIN niches n ON n.id = cn.niche_id
                       WHERE cn.creator_id = u.id), '{}') AS niches,
@@ -101,6 +102,8 @@ export const CREATOR_CSV_COLUMNS = [
   ['קהל', (r) => GENDER[r.audience_gender]],
   ['גילאי קהל', (r) => (r.audience_age_min || r.audience_age_max ? `${r.audience_age_min ?? ''}-${r.audience_age_max ?? ''}` : '')],
   ['מגזר', (r) => r.audience_sector],
+  // On a campaign export, the address she confirmed for that campaign wins over the profile one
+  ['כתובת למשלוח', (r) => r.shipping_address || formatAddress(r)],
 ];
 
 /**

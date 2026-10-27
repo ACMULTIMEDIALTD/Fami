@@ -143,16 +143,18 @@ export const mails = {
 
   selected: (to, campaign) => {
     const url = `${config.appUrl}/c/${campaign.slug}`;
+    const ships = campaign.type === 'barter' || campaign.type === 'hybrid';
     return sendMail({
       to,
       subject: `נבחרת לקמפיין: ${campaign.title} 🎉`,
-      text: `נבחרת לקמפיין "${campaign.title}"! הבריף המלא ותנאי התשלום מחכים לך כאן:\n${url}`,
+      text: `נבחרת לקמפיין "${campaign.title}"! הבריף המלא ותנאי התשלום מחכים לך כאן:\n${url}${ships ? '\n\nבקמפיין הזה נשלח אלייך מוצר: אשרי בעמוד הקמפיין את כתובת המשלוח.' : ''}`,
       html: layout({
         preheader: `הבריף המלא ותנאי התשלום של "${campaign.title}" מחכים לך.`,
         title: 'נבחרת! 🎉',
         body: `<p>מזל טוב! נבחרת לקמפיין:</p>
           ${details([row('קמפיין', `<b>${esc(campaign.title)}</b>`)])}
-          <p style="margin-top:14px">בעמוד הקמפיין מחכים לך הבריף המלא ותנאי התשלום. כדאי לקרוא אותם עכשיו ולשים לב ללוחות הזמנים.</p>`,
+          <p style="margin-top:14px">בעמוד הקמפיין מחכים לך הבריף המלא ותנאי התשלום. כדאי לקרוא אותם עכשיו ולשים לב ללוחות הזמנים.</p>
+          ${ships ? '<p><b>בקמפיין הזה נשלח אלייך מוצר:</b> אשרי בעמוד הקמפיין שכתובת המשלוח נכונה, כדי שהחבילה תגיע למקום הנכון.</p>' : ''}`,
         cta: { label: 'לבריף המלא', url },
         note: 'שאלות על הקמפיין? פני לנועה בווטסאפ.',
       }),

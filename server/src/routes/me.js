@@ -10,6 +10,7 @@ import { mails } from '../lib/mailer.js';
 import { registerDevice } from '../lib/push.js';
 import { sniffDocument } from '../lib/images.js';
 import { DOC_TYPES } from '../lib/payments.js';
+import { formatAddress, shipsProduct } from '../lib/address.js';
 
 const router = Router();
 router.use(requireRole('creator'));
@@ -51,6 +52,13 @@ const profileSchema = z.object({
   open_to_affiliate: z.boolean().default(false),
   billing_status: z.enum(['osek_patur', 'osek_murshe', 'company', 'none']).default('none'),
 
+  // Home address for shipping products; she ticks that it's correct
+  address_street: optText(150),
+  address_apt: optText(60),
+  address_city: optText(80),
+  address_zip: z.preprocess((v) => (empty(v) ? null : String(v).replace(/\s/g, '')), z.string().regex(/^\d{5,7}$/, 'מיקוד לא תקין').nullable()),
+  address_confirmed: z.boolean().default(false),
+
   niches: z.array(z.number().int().positive()).min(1, 'יש לבחור לפחות תחום אחד').max(5, 'עד 5 תחומים'),
   links: z.array(z.object({ url, label: optText(80) })).max(10).default([]),
 
@@ -60,6 +68,10 @@ const profileSchema = z.object({
   .refine((p) => p.instagram_handle || p.tiktok_handle, { path: ['instagram_handle'], message: 'יש להזין לפחות חשבון אינסטגרם או טיקטוק' })
   .refine((p) => !p.instagram_handle || p.instagram_followers != null, { path: ['instagram_followers'], message: 'כמה עוקבים יש באינסטגרם?' })
   .refine((p) => !p.tiktok_handle || p.tiktok_followers != null, { path: ['tiktok_followers'], message: 'כמה עוקבים יש בטיקטוק?' })
+  .refine((p) => !p.open_to_barter || p.address_street, { path: ['address_street'], message: 'כתובת למשלוח מוצרים (רחוב ומספר)' })
+  .refine((p) => !p.open_to_barter || p.address_city, { path: ['address_city'], message: 'באיזו עיר?' })
+  .refine((p) => !p.address_street || p.address_city, { path: ['address_city'], message: 'באיזו עיר?' })
+  .refine((p) => !p.address_street || p.address_confirmed, { path: ['address_confirmed'], message: 'יש לאשר שהכתובת נכונה' })
   .refine((p) => p.audience_age_min == null || p.audience_age_max == null || p.audience_age_min <= p.audience_age_max,
     { path: ['audience_age_max'], message: 'טווח גילאים לא תקין' });
 
@@ -69,6 +81,7 @@ const PROFILE_COLUMNS = [
   'audience_gender', 'audience_age_min', 'audience_age_max', 'audience_sector',
   'open_to_paid', 'open_to_barter', 'open_to_events', 'open_to_affiliate',
   'billing_status',
+  'address_street', 'address_apt', 'address_city', 'address_zip',
 ];
 
 router.get('/profile', async (req, res) => {
@@ -92,12 +105,13 @@ router.put('/profile', async (req, res) => {
     if (!existing) {
       const cols = [...PROFILE_COLUMNS, 'terms_version', 'terms_ip'];
       await db.query(
-        `INSERT INTO creators (user_id, ${cols.join(', ')}, terms_accepted_at)
-         VALUES ($1, ${cols.map((_, i) => `$${i + 2}`).join(', ')}, now())`,
+        `INSERT INTO creators (user_id, ${cols.join(', ')}, terms_accepted_at, address_confirmed_at)
+         VALUES ($1, ${cols.map((_, i) => `$${i + 2}`).join(', ')}, now(), ${data.address_street ? 'now()' : 'NULL'})`,
         [req.user.id, ...values, config.termsVersion, req.ip],
       );
     } else {
       const sets = PROFILE_COLUMNS.map((c, i) => `${c} = $${i + 2}`);
+      sets.push(`address_confirmed_at = ${data.address_street ? 'now()' : 'NULL'}`);
       if (accepting) sets.push(`terms_version = $${values.length + 2}`, 'terms_accepted_at = now()', `terms_ip = $${values.length + 3}`);
       await db.query(
         `UPDATE creators SET ${sets.join(', ')}, updated_at = now() WHERE user_id = $1`,
@@ -168,6 +182,39 @@ router.get('/applications', async (req, res) => {
     [req.user.id],
   );
   res.json({ applications: rows });
+});
+
+// ---------- shipping address (selected for a campaign with a product) ----------
+
+/** Confirms (or corrects) where to ship the product. Also updates the address in her profile. */
+router.put('/applications/:id/address', async (req, res) => {
+  if (!z.string().uuid().safeParse(req.params.id).success) throw new HttpError(404, 'application_not_found');
+  const data = parse(z.object({
+    address_street: z.string().trim().min(2, 'רחוב ומספר בית').max(150),
+    address_apt: optText(60),
+    address_city: z.string().trim().min(2, 'באיזו עיר?').max(80),
+    address_zip: z.preprocess((v) => (empty(v) ? null : String(v).replace(/\s/g, '')), z.string().regex(/^\d{5,7}$/, 'מיקוד לא תקין').nullable()),
+  }), req.body);
+  const app = await one(
+    `SELECT a.id, a.status, c.type FROM applications a JOIN campaigns c ON c.id = a.campaign_id
+     WHERE a.id = $1 AND a.creator_id = $2`,
+    [req.params.id, req.user.id],
+  );
+  if (!app) throw new HttpError(404, 'application_not_found');
+  if (!['selected', 'completed'].includes(app.status) || !shipsProduct(app.type)) {
+    throw new HttpError(409, 'no_shipping', 'אין משלוח בקמפיין הזה');
+  }
+  await tx(async (db) => {
+    await db.query(
+      `UPDATE creators SET address_street = $2, address_apt = $3, address_city = $4, address_zip = $5,
+         address_confirmed_at = now(), updated_at = now() WHERE user_id = $1`,
+      [req.user.id, data.address_street, data.address_apt, data.address_city, data.address_zip],
+    );
+    await db.query('UPDATE applications SET shipping_address = $2, address_confirmed_at = now() WHERE id = $1',
+      [app.id, formatAddress(data)]);
+    await logEvent(req.user.id, 'shipping_address_confirmed', { application_id: app.id }, db);
+  });
+  res.json({ ok: true, shipping_address: formatAddress(data) });
 });
 
 // ---------- invoices (after Noa approves the video) ----------

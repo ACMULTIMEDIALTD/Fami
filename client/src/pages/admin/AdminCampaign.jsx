@@ -159,6 +159,11 @@ export default function AdminCampaign() {
                     <td className="hide-sm small msg">{a.message}</td>
                     <td>
                       <AppStatusChip status={a.status} admin />
+                      {['selected', 'completed'].includes(a.status) && c.type !== 'paid' && (
+                        <span className="block small" title={a.shipping_address || ''}>
+                          {a.address_confirmed_at ? '📦 כתובת אושרה' : '📦 ממתין לאישור כתובת'}
+                        </span>
+                      )}
                       {a.status === 'completed' && c.type !== 'barter' && (
                         <Link to="/admin/payments" className="block small" onClick={(e) => e.stopPropagation()}>
                           {a.paid_at ? 'שולם ✓' : a.invoice ? `חשבונית ₪${fmtNum(a.invoice.amount_ils)}` : 'ממתין לחשבונית'}

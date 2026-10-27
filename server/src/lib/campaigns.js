@@ -27,7 +27,7 @@ export async function lookupNames(client = pool) {
 export async function eligibilityCreator(userId, client = pool) {
   const { rows } = await client.query(
     `SELECT c.user_id, c.instagram_followers, c.tiktok_followers, c.region_id, c.terms_version,
-            c.open_to_paid, c.open_to_barter,
+            c.open_to_paid, c.open_to_barter, c.address_street, c.address_city,
             COALESCE((SELECT array_agg(niche_id) FROM creator_niches WHERE creator_id = c.user_id), '{}') AS niche_ids
      FROM creators c WHERE c.user_id = $1`,
     [userId],

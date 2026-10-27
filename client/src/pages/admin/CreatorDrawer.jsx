@@ -134,6 +134,9 @@ export default function CreatorDrawer({ id, meta, onClose, onChanged }) {
                 <dl className="kv">
                   <dt>פתוחה ל</dt><dd>{[p.open_to_paid && 'תשלום', p.open_to_barter && 'בארטר', p.open_to_events && 'אירועים', p.open_to_affiliate && 'שותפים'].filter(Boolean).join(', ') || '—'}</dd>
                   <dt>סטטוס עסקי</dt><dd>{BILLING[p.billing_status]}</dd>
+                  <dt>כתובת</dt><dd>{p.address_street
+                    ? <>{[p.address_street, p.address_apt, p.address_city, p.address_zip].filter(Boolean).join(', ')}{p.address_confirmed_at && <span className="muted small"> · אושרה {fmtDate(p.address_confirmed_at)}</span>}</>
+                    : '—'}</dd>
                   <dt>תנאים</dt><dd><bdi>{p.terms_version}</bdi> · {fmtDateTime(p.terms_accepted_at)}{p.terms_ip && <> · <bdi>{p.terms_ip}</bdi></>}</dd>
                 </dl>
 
