@@ -418,3 +418,15 @@ test('terms acceptance records that the terms were read to the end', async () =>
   assert.equal(rows[0].payload.read_to_end, true);
   assert.equal(rows[0].payload.version, '2026-10-v1');
 });
+
+test('sign-in link request works when the page sends next: null', async () => {
+  const { email } = await makeCreator({ admin });
+  outbox.length = 0;
+  await agent().post('/api/v1/auth/login').send({ email, next: null }).expect(200);
+  assert.equal(outbox.length, 1);
+  assert.match(outbox[0].text, /\/m\/[\w-]+$/m);
+  // branded HTML email: logo, button and footer links
+  assert.match(outbox[0].html, /logo-512\.jpg/);
+  assert.match(outbox[0].html, /כניסה לקהילה/);
+  assert.match(outbox[0].html, /\/accessibility/);
+});

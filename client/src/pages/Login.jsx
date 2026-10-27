@@ -32,7 +32,7 @@ export default function Login() {
     setError(null);
     try {
       if (mode === 'magic') {
-        const r = await api.post('/auth/login', { email, next });
+        const r = await api.post('/auth/login', next ? { email, next } : { email });
         if (r.demo_logged_in) {
           await refresh();
           return;

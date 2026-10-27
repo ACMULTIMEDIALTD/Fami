@@ -63,7 +63,7 @@ router.post('/signup', limiter, async (req, res) => {
 const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email('כתובת מייל לא תקינה'),
   password: z.string().optional(),
-  next: z.string().optional(),
+  next: z.string().nullish(), // the login page sends null when there's no ?next=
 });
 
 router.post('/login', limiter, async (req, res) => {
