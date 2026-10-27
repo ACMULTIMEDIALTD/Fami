@@ -1,0 +1,54 @@
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { DEMO } from './demo/flag.js';
+import DemoBar from './demo/DemoBar.jsx';
+import NativeBridge from './native/NativeBridge.jsx';
+import MagicLink from './pages/MagicLink.jsx';
+import { RequireAuth } from './auth.jsx';
+import Layout from './components/Layout.jsx';
+import Landing from './pages/Landing.jsx';
+import Brands from './pages/Brands.jsx';
+import Join from './pages/Join.jsx';
+import Login from './pages/Login.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import Campaign from './pages/Campaign.jsx';
+import EditProfile from './pages/EditProfile.jsx';
+import MyApplications from './pages/MyApplications.jsx';
+import AdminHome from './pages/admin/AdminHome.jsx';
+import AdminCreators from './pages/admin/AdminCreators.jsx';
+import AdminCampaigns from './pages/admin/AdminCampaigns.jsx';
+import AdminCampaignForm from './pages/admin/AdminCampaignForm.jsx';
+import AdminCampaign from './pages/admin/AdminCampaign.jsx';
+import AdminBrands from './pages/admin/AdminBrands.jsx';
+
+const creator = (el) => <RequireAuth role="creator">{el}</RequireAuth>;
+const admin = (el) => <RequireAuth role="admin">{el}</RequireAuth>;
+
+export default function App() {
+  return (
+    <>
+    {DEMO && <DemoBar />}
+    <NativeBridge />
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="/brands" element={<Brands />} />
+      <Route element={<Layout />}>
+        <Route path="/join" element={<Join />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/m/:token" element={<MagicLink />} />
+        <Route path="/dashboard" element={creator(<Dashboard />)} />
+        <Route path="/c/:slug" element={<RequireAuth><Campaign /></RequireAuth>} />
+        <Route path="/me" element={creator(<EditProfile />)} />
+        <Route path="/me/applications" element={creator(<MyApplications />)} />
+        <Route path="/admin" element={admin(<AdminHome />)} />
+        <Route path="/admin/creators" element={admin(<AdminCreators />)} />
+        <Route path="/admin/campaigns" element={admin(<AdminCampaigns />)} />
+        <Route path="/admin/campaigns/new" element={admin(<AdminCampaignForm />)} />
+        <Route path="/admin/campaigns/:id/edit" element={admin(<AdminCampaignForm />)} />
+        <Route path="/admin/campaigns/:id" element={admin(<AdminCampaign />)} />
+        <Route path="/admin/brands" element={admin(<AdminBrands />)} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+    </>
+  );
+}
