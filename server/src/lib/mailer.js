@@ -51,7 +51,9 @@ function button(label, url, color = C.wine) {
  */
 function layout({ preheader, title, body, cta, secondary, note }) {
   const app = config.appUrl;
-  const p = (html) => html.replace(/<p>/g, `<p style="margin:0 0 14px;font-family:${FONT};font-size:16px;line-height:1.7;color:${C.ink}">`);
+  // Give every <p> the base text style; a <p style="..."> keeps its own styles on top
+  const p = (html) => html.replace(/<p(?: style="([^"]*)")?>/g,
+    (_, extra = '') => `<p style="margin:0 0 14px;font-family:${FONT};font-size:16px;line-height:1.7;color:${C.ink};${extra}">`);
   return `<!doctype html>
 <html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light only">
@@ -88,16 +90,21 @@ const row = (k, v) => `<tr><td style="padding:6px 0;font-family:${FONT};font-siz
 const details = (rows) => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 4px;width:100%;background:${C.cream2};border-radius:12px;padding:10px 16px" dir="rtl">${rows.join('')}</table>`;
 
 export const mails = {
-  magicLink: (to, url) => sendMail({
+  magicLink: (to, url, code) => sendMail({
     to,
-    subject: 'קישור הכניסה שלך ל-The Creator Club',
-    text: `לכניסה לחצי על הקישור (תקף ל-30 דקות):\n${url}\n\nאם לא ביקשת להתחבר, אפשר להתעלם מהמייל.`,
+    subject: code ? `קוד הכניסה שלך: ${code}` : 'קישור הכניסה שלך ל-The Creator Club',
+    text: `${code ? `קוד הכניסה שלך: ${code}\n(מקלידים אותו במסך הכניסה, גם באפליקציה שבמסך הבית)\n\n` : ''}או כניסה בלחיצה על הקישור (תקף ל-30 דקות):\n${url}\n\nאם לא ביקשת להתחבר, אפשר להתעלם מהמייל.`,
     html: layout({
-      preheader: 'לחיצה אחת ואת בפנים. הקישור תקף ל-30 דקות.',
+      preheader: code ? `הקוד שלך: ${code}. תקף ל-30 דקות.` : 'לחיצה אחת ואת בפנים. הקישור תקף ל-30 דקות.',
       title: 'הכניסה שלך מוכנה ✨',
-      body: '<p>היי,</p><p>ביקשת להיכנס לקהילה. לחיצה על הכפתור תכניס אותך ישר לאזור האישי, בלי סיסמה.</p>',
+      body: `${code ? `<p>הקלידי את הקוד הזה במסך הכניסה:</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:6px auto 18px">
+          <tr><td align="center" style="background:${C.cream2};border:1px dashed ${C.wine};border-radius:14px;padding:14px 26px;font-family:'Courier New',Courier,monospace;font-size:34px;font-weight:700;letter-spacing:10px;color:${C.wine}" dir="ltr">${code}</td></tr>
+        </table>
+        <p style="text-align:center">נכנסת מהאפליקציה שבמסך הבית? השתמשי בקוד, כדי להישאר בתוך האפליקציה.</p>
+        <p style="text-align:center;margin-top:18px">או כניסה בלחיצה, בדפדפן:</p>` : '<p>היי,</p><p>ביקשת להיכנס לקהילה. לחיצה על הכפתור תכניס אותך ישר לאזור האישי, בלי סיסמה.</p>'}`,
       cta: { label: 'כניסה לקהילה', url },
-      note: 'הקישור תקף ל-30 דקות ולשימוש אחד. אם לא ביקשת להתחבר, אפשר פשוט להתעלם מהמייל.',
+      note: 'הקוד והקישור תקפים ל-30 דקות ולשימוש אחד. אם לא ביקשת להתחבר, אפשר פשוט להתעלם מהמייל.',
     }),
   }),
 

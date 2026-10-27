@@ -24,6 +24,9 @@ const limiter = rateLimit({
 });
 
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
+// The code is only 6 digits, so it's hashed with the server secret and bound to the user
+const codeHash = (userId, code) => crypto.createHmac('sha256', config.jwtSecret).update(`login-code:${userId}:${code}`).digest('hex');
+const MAX_CODE_ATTEMPTS = 5;
 
 /** Only allow same-app relative redirects ("/c/abc"), never "//evil.com" or absolute URLs. */
 export function safeNext(next) {
@@ -77,14 +80,18 @@ router.post('/login', limiter, async (req, res) => {
     // Magic link. Same response whether or not the email exists (no account enumeration).
     if (user && !['suspended', 'left'].includes(user.status)) {
       const token = crypto.randomBytes(32).toString('base64url');
+      const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+      // A new request replaces older unused links/codes, so only the latest email works
+      await query('UPDATE magic_links SET used_at = now() WHERE user_id = $1 AND used_at IS NULL', [user.id]);
       await query(
-        `INSERT INTO magic_links (token, user_id, expires_at) VALUES ($1, $2, now() + make_interval(mins => $3))`,
-        [sha256(token), user.id, MAGIC_TTL_MIN],
+        `INSERT INTO magic_links (token, user_id, expires_at, code_hash) VALUES ($1, $2, now() + make_interval(mins => $3), $4)`,
+        [sha256(token), user.id, MAGIC_TTL_MIN, codeHash(user.id, code)],
       );
       const qs = safeNext(next) ? `?next=${encodeURIComponent(next)}` : '';
       // /m/<token> is a client page: in a browser it signs in there; on a phone with the app
-      // installed the same https link opens the app (universal / app links).
-      await mails.magicLink(user.email, `${config.appUrl}/m/${token}${qs}`);
+      // installed the same https link opens the app (universal / app links). The code is for the
+      // home-screen web app, which has its own storage and can't be reached by a link.
+      await mails.magicLink(user.email, `${config.appUrl}/m/${token}${qs}`, code);
     }
     return res.json({ ok: true, magic: true });
   }
@@ -114,6 +121,44 @@ async function consumeMagic(raw) {
   await logEvent(user.id, 'login', { method: 'magic' });
   return user;
 }
+
+/** Sign in by typing the 6-digit code from the email (stays inside the home-screen app). */
+router.post('/code', limiter, async (req, res) => {
+  const { email, code } = parse(z.object({
+    email: z.string().trim().toLowerCase().email('כתובת מייל לא תקינה'),
+    code: z.string().trim().regex(/^\d{6}$/, 'הקוד הוא 6 ספרות'),
+  }), req.body);
+  const bad = () => new HttpError(401, 'invalid_code', 'הקוד שגוי או שפג תוקפו. אפשר לבקש קוד חדש.');
+
+  const user = await one('SELECT id, email, phone, role, status FROM users WHERE email = $1', [email]);
+  if (!user || ['suspended', 'left'].includes(user.status)) throw bad();
+  const link = await one(
+    `SELECT token, code_hash, attempts FROM magic_links
+     WHERE user_id = $1 AND used_at IS NULL AND expires_at > now() AND code_hash IS NOT NULL
+     ORDER BY expires_at DESC LIMIT 1`,
+    [user.id],
+  );
+  if (!link || link.attempts >= MAX_CODE_ATTEMPTS) throw bad();
+
+  const given = Buffer.from(codeHash(user.id, code));
+  const expected = Buffer.from(link.code_hash);
+  if (!crypto.timingSafeEqual(given, expected)) {
+    // Too many wrong guesses burn the code
+    await query(
+      `UPDATE magic_links SET attempts = attempts + 1,
+         used_at = CASE WHEN attempts + 1 >= $2 THEN now() ELSE used_at END
+       WHERE token = $1`,
+      [link.token, MAX_CODE_ATTEMPTS],
+    );
+    throw bad();
+  }
+
+  await query('UPDATE magic_links SET used_at = now() WHERE token = $1', [link.token]);
+  await query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
+  await logEvent(user.id, 'login', { method: 'code' });
+  const token = setSession(req, res, user);
+  res.json({ user, token });
+});
 
 /** Used by the /m/:token page (web and app). */
 router.post('/magic', limiter, async (req, res) => {

@@ -398,3 +398,7 @@ a.list-row:hover { border-color: var(--wine); }
 .contact-kv { margin: 8px 0 12px; }
 
 .spam-tip { font-size: .9rem; color: var(--muted); background: var(--cream-2); border-radius: 12px; padding: 12px 14px; margin: 4px 0 16px; line-height: 1.6; }
+
+/* login code */
+.code-step form { display: flex; flex-direction: column; gap: 12px; margin: 8px 0 14px; }
+.code-input { text-align: center !important; font-size: 2rem !important; letter-spacing: .5em; font-variant-numeric: tabular-nums; padding: 14px 10px !important; font-family: ui-monospace, Menlo, monospace; }

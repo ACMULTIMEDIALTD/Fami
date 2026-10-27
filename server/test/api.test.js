@@ -441,3 +441,33 @@ test('emails carry a Reply-To: Noa for creators, the brand for brand inquiries',
     .send({ name: 'רון', brand: 'מותג', phone: '0501112222', email: 'ron@brand.co.il', message: '' }).expect(200);
   assert.equal(outbox[0].replyTo, 'ron@brand.co.il');
 });
+
+test('login code: sign in by typing the 6-digit code from the email', async () => {
+  const { email } = await makeCreator({ admin });
+  outbox.length = 0;
+  await agent().post('/api/v1/auth/login').send({ email }).expect(200);
+  const code = outbox[0].text.match(/קוד הכניסה שלך: (\d{6})/)[1];
+  assert.match(outbox[0].subject, new RegExp(code));
+  assert.ok(outbox[0].html.includes(code));
+
+  // wrong code → 401, right code → session (and the app gets a token)
+  await agent().post('/api/v1/auth/code').send({ email, code: code === '000000' ? '111111' : '000000' }).expect(401);
+  const a = agent();
+  const ok = await a.post('/api/v1/auth/code').set('X-Client', 'app').send({ email, code }).expect(200);
+  assert.ok(ok.body.token);
+  await a.get('/api/v1/auth/me').expect(200);
+  // single use
+  await agent().post('/api/v1/auth/code').send({ email, code }).expect(401);
+
+  // a newer request replaces the old code; 5 wrong guesses burn the code
+  outbox.length = 0;
+  await agent().post('/api/v1/auth/login').send({ email }).expect(200);
+  const code2 = outbox[0].text.match(/קוד הכניסה שלך: (\d{6})/)[1];
+  const wrong = code2 === '999999' ? '888888' : '999999';
+  for (let i = 0; i < 5; i++) await agent().post('/api/v1/auth/code').send({ email, code: wrong }).expect(401);
+  await agent().post('/api/v1/auth/code').send({ email, code: code2 }).expect(401);
+
+  // unknown email looks the same as a wrong code
+  const unknown = await agent().post('/api/v1/auth/code').send({ email: 'nobody@test.local', code: '123456' }).expect(401);
+  assert.equal(unknown.body.error, 'invalid_code');
+});
