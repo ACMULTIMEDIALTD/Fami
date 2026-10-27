@@ -394,3 +394,5 @@ a.list-row:hover { border-color: var(--wine); }
 .built-by { margin: 6px 0 0; font-size: .78rem; color: var(--muted); text-align: center; }
 .built-by a { color: inherit; font-weight: 500; text-underline-offset: 3px; }
 .app-footer { padding: 0 16px calc(20px + env(safe-area-inset-bottom)); margin-top: -56px; }
+
+.contact-kv { margin: 8px 0 12px; }
