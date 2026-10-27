@@ -206,7 +206,14 @@ const routes = [
       needs_terms: !!c && c.terms_version !== TERMS_VERSION,
       terms: { version: TERMS_VERSION, pdf_url: '' },
       whatsapp_group_url: u.status === 'active' ? 'https://chat.whatsapp.com/' : null,
+      has_password: !!u.password,
+      can_reset_password: true,
     };
+  }],
+  ['POST', '/auth/password', (b) => {
+    if ((b.password || '').length < 8) fail(400, 'validation_error', 'סיסמה של 8 תווים לפחות');
+    me().password = b.password;
+    return { ok: true };
   }],
   ['GET', '/public/meta', () => ({ niches: db.niches, regions: db.regions, terms: { version: TERMS_VERSION, pdf_url: '' }, mail_enabled: true })],
   ['POST', '/public/brand-inquiry', (b) => {

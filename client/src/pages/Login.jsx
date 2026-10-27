@@ -12,7 +12,9 @@ export default function Login() {
   const { me, refresh } = useAuth();
   const nav = useNavigate();
   const [params] = useSearchParams();
-  const next = safeNext(params.get('next'));
+  const [forgot, setForgot] = useState(false);
+  // "Forgot password": sign in with an emailed code, then land on the new-password screen
+  const next = forgot ? '/password?reset=1' : safeNext(params.get('next'));
   const meta = useMeta();
   const mailEnabled = meta?.mail_enabled !== false;
   const [chosenMode, setMode] = useState('magic'); // creators hate passwords
@@ -72,6 +74,7 @@ export default function Login() {
     return (
       <div className="narrow card center code-step">
         <h1>בדקי את המייל 💌</h1>
+        {forgot && <p>אחרי הכניסה עם הקוד תוכלי לבחור סיסמה חדשה.</p>}
         <p>אם <b dir="ltr">{email}</b> רשום אצלנו, שלחנו אלייך <b>קוד כניסה</b> בן 6 ספרות. הקלידי אותו כאן:</p>
         <form onSubmit={(e) => { e.preventDefault(); submitCode(); }}>
           <input
@@ -103,7 +106,8 @@ export default function Login() {
 
   return (
     <div className="narrow">
-      <h1 className="page-title">כניסה לקהילה</h1>
+      <h1 className="page-title">{forgot ? 'שכחתי סיסמה' : 'כניסה לקהילה'}</h1>
+      {forgot && <p className="muted">נשלח לך קוד למייל. נכנסים איתו ובוחרים סיסמה חדשה.</p>}
       {DEMO && <p className="demo-hint">בהדגמה אין מיילים: מספיק להקליד מייל ולהיכנס, או להשתמש בכפתורים בפס העליון.</p>}
       <form className="card form" onSubmit={submit}>
         <Field label="מייל">
@@ -116,10 +120,15 @@ export default function Login() {
         )}
         <ErrorBox error={error} />
         <button className="btn primary block" disabled={busy}>
-          {busy ? 'רגע…' : mode === 'magic' ? 'שלחו לי קוד כניסה למייל' : 'כניסה'}
+          {busy ? 'רגע…' : mode === 'magic' ? (forgot ? 'שלחו לי קוד לאיפוס' : 'שלחו לי קוד כניסה למייל') : 'כניסה'}
         </button>
+        {mailEnabled && mode === 'password' && (
+          <button type="button" className="linklike center-text" onClick={() => { setForgot(true); setMode('magic'); setError(null); }}>
+            שכחתי סיסמה
+          </button>
+        )}
         {mailEnabled && (
-          <button type="button" className="linklike center-text" onClick={() => setMode(mode === 'magic' ? 'password' : 'magic')}>
+          <button type="button" className="linklike center-text" onClick={() => { setForgot(false); setMode(mode === 'magic' ? 'password' : 'magic'); }}>
             {mode === 'magic' ? 'כניסה עם סיסמה' : 'כניסה עם קוד למייל (בלי סיסמה)'}
           </button>
         )}

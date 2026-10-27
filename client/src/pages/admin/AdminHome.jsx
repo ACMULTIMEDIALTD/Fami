@@ -44,7 +44,10 @@ export default function AdminHome() {
     <div>
       <div className="page-head">
         <h1 className="page-title">היום</h1>
-        <Link to="/admin/campaigns/new" className="btn primary">+ קמפיין חדש</Link>
+        <div className="head-actions">
+          <Link to="/password" className="btn ghost sm">החלפת סיסמה</Link>
+          <Link to="/admin/campaigns/new" className="btn primary">+ קמפיין חדש</Link>
+        </div>
       </div>
       <ErrorBox error={error} />
       <InstallLinkBox />

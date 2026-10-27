@@ -59,7 +59,7 @@ router.post('/signup', limiter, async (req, res) => {
     [email, phone, hash],
   );
   await logEvent(user.id, 'signup', { ip: req.ip, app: req.get('X-Client') === 'app' });
-  const token = setSession(req, res, user);
+  const token = setSession(req, res, user, 'signup');
   res.status(201).json({ user, token });
 });
 
@@ -102,7 +102,7 @@ router.post('/login', limiter, async (req, res) => {
 
   await query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
   await logEvent(user.id, 'login', { method: 'password' });
-  const token = setSession(req, res, user);
+  const token = setSession(req, res, user, 'password');
   delete user.password_hash;
   res.json({ user, token });
 });
@@ -156,7 +156,7 @@ router.post('/code', limiter, async (req, res) => {
   await query('UPDATE magic_links SET used_at = now() WHERE token = $1', [link.token]);
   await query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
   await logEvent(user.id, 'login', { method: 'code' });
-  const token = setSession(req, res, user);
+  const token = setSession(req, res, user, 'code');
   res.json({ user, token });
 });
 
@@ -165,7 +165,7 @@ router.post('/magic', limiter, async (req, res) => {
   const { token: raw } = parse(z.object({ token: z.string().min(10).max(200) }), req.body);
   const user = await consumeMagic(raw);
   if (!user) throw new HttpError(410, 'link_expired', 'הקישור פג תוקף או שכבר נעשה בו שימוש. אפשר לבקש קישור חדש.');
-  const token = setSession(req, res, user);
+  const token = setSession(req, res, user, 'magic');
   res.json({ user, token });
 });
 
@@ -173,7 +173,7 @@ router.post('/magic', limiter, async (req, res) => {
 router.get('/magic/:token', async (req, res) => {
   const user = await consumeMagic(req.params.token);
   if (!user) return res.redirect(`${config.appUrl}/login?error=link_expired`);
-  setSession(req, res, user);
+  setSession(req, res, user, 'magic');
   res.redirect(`${config.appUrl}${safeNext(req.query.next) || '/dashboard'}`);
 });
 
@@ -181,6 +181,34 @@ router.post('/logout', async (req, res) => {
   // The app passes its push token so this phone stops getting notifications for this account
   if (req.body?.push_token) await unregisterDevice(req.body.push_token);
   clearSession(res);
+  res.json({ ok: true });
+});
+
+const RESET_WINDOW_MS = 30 * 60 * 1000;
+
+/** Signed in with an emailed code/link in the last 30 minutes — proves access to the mailbox. */
+const recentEmailLogin = (req) => ['code', 'magic'].includes(req.auth?.method)
+  && Date.now() - req.auth.issuedAt < RESET_WINDOW_MS;
+
+/**
+ * Set or change the password. The current password is required, unless there is none yet or
+ * she just signed in with an emailed code ("forgot password").
+ */
+router.post('/password', limiter, requireAuth, async (req, res) => {
+  const { password, current_password: current } = parse(z.object({
+    password: z.string().min(8, 'סיסמה של 8 תווים לפחות').max(200),
+    current_password: z.string().max(200).optional(),
+  }), req.body);
+  const { password_hash: hash } = await one('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+  if (hash && !recentEmailLogin(req)) {
+    if (!current || !(await bcrypt.compare(current, hash))) {
+      throw new HttpError(400, 'invalid_current_password', 'הסיסמה הנוכחית שגויה', {
+        fields: { current_password: 'הסיסמה הנוכחית שגויה' },
+      });
+    }
+  }
+  await query('UPDATE users SET password_hash = $1 WHERE id = $2', [await bcrypt.hash(password, 12), req.user.id]);
+  await logEvent(req.user.id, 'password_changed', { reset: !!hash && recentEmailLogin(req) });
   res.json({ ok: true });
 });
 
@@ -198,6 +226,8 @@ router.get('/me', requireAuth, async (req, res) => {
     needs_terms: !!creator && creator.terms_version !== config.termsVersion,
     terms: { version: config.termsVersion, pdf_url: config.termsPdfUrl },
     whatsapp_group_url: req.user.status === 'active' ? config.whatsappGroupUrl || null : null,
+    has_password: !!(await one('SELECT password_hash FROM users WHERE id = $1', [req.user.id])).password_hash,
+    can_reset_password: recentEmailLogin(req),
   });
 });
 

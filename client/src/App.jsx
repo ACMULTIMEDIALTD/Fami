@@ -12,6 +12,7 @@ import Install from './pages/Install.jsx';
 import Accessibility from './pages/Accessibility.jsx';
 import Join from './pages/Join.jsx';
 import Login from './pages/Login.jsx';
+import Password from './pages/Password.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Campaign from './pages/Campaign.jsx';
 import EditProfile from './pages/EditProfile.jsx';
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/dashboard" element={creator(<Dashboard />)} />
         <Route path="/c/:slug" element={<RequireAuth><Campaign /></RequireAuth>} />
         <Route path="/me" element={creator(<EditProfile />)} />
+        <Route path="/password" element={<RequireAuth><Password /></RequireAuth>} />
         <Route path="/me/applications" element={creator(<MyApplications />)} />
         <Route path="/admin" element={admin(<AdminHome />)} />
         <Route path="/admin/creators" element={admin(<AdminCreators />)} />

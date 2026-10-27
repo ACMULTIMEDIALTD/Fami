@@ -471,3 +471,32 @@ test('login code: sign in by typing the 6-digit code from the email', async () =
   const unknown = await agent().post('/api/v1/auth/code').send({ email: 'nobody@test.local', code: '123456' }).expect(401);
   assert.equal(unknown.body.error, 'invalid_code');
 });
+
+test('forgot password: code sign-in sets a new password; otherwise the current one is needed', async () => {
+  const { email, agent: a } = await makeCreator({ admin });
+
+  // password session: must give the current password
+  const me = await a.get('/api/v1/auth/me').expect(200);
+  assert.equal(me.body.has_password, true);
+  assert.equal(me.body.can_reset_password, false);
+  const no = await a.post('/api/v1/auth/password').send({ password: 'newpass456' }).expect(400);
+  assert.equal(no.body.error, 'invalid_current_password');
+  await a.post('/api/v1/auth/password').send({ password: 'newpass456', current_password: 'wrong' }).expect(400);
+  await a.post('/api/v1/auth/password').send({ password: 'short', current_password: 'password123' }).expect(400);
+  await a.post('/api/v1/auth/password').send({ password: 'newpass456', current_password: 'password123' }).expect(200);
+  await agent().post('/api/v1/auth/login').send({ email, password: 'password123' }).expect(401);
+  await agent().post('/api/v1/auth/login').send({ email, password: 'newpass456' }).expect(200);
+
+  // forgot it: sign in with the emailed code, then set a new one without the old
+  outbox.length = 0;
+  await agent().post('/api/v1/auth/login').send({ email }).expect(200);
+  const code = outbox[0].text.match(/קוד הכניסה שלך: (\d{6})/)[1];
+  const b = agent();
+  await b.post('/api/v1/auth/code').send({ email, code }).expect(200);
+  assert.equal((await b.get('/api/v1/auth/me').expect(200)).body.can_reset_password, true);
+  await b.post('/api/v1/auth/password').send({ password: 'fresh789xyz' }).expect(200);
+  await agent().post('/api/v1/auth/login').send({ email, password: 'fresh789xyz' }).expect(200);
+
+  // logged out → 401
+  await agent().post('/api/v1/auth/password').send({ password: 'whatever123' }).expect(401);
+});

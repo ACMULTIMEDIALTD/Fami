@@ -80,6 +80,7 @@ input[dir=ltr]::placeholder { text-align: left; }
 
 .page-title { margin-bottom: 16px; }
 .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.head-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .section-title { margin-top: 28px; font-size: 1.15rem; }
 .back { display: inline-block; margin-bottom: 12px; text-decoration: none; color: var(--muted); }
 .muted { color: var(--muted); }

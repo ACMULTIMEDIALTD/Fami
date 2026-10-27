@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { Spinner } from '../auth.jsx';
 import { ErrorBox } from '../components/ui.jsx';
@@ -17,7 +18,10 @@ export default function EditProfile() {
 
   return (
     <div className="narrow">
-      <h1 className="page-title">הפרופיל שלי</h1>
+      <div className="page-head">
+        <h1 className="page-title">הפרופיל שלי</h1>
+        <Link to="/password" className="btn ghost sm">החלפת סיסמה</Link>
+      </div>
       {saved && <div className="alert success" role="status">הפרופיל נשמר ✓</div>}
       <ProfileWizard
         key={key}
