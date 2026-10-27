@@ -9,7 +9,7 @@ export const config = {
   isProd,
   isTest: env.NODE_ENV === 'test',
   port: Number(env.PORT) || 4000,
-  databaseUrl: env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/fami',
+  databaseUrl: env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/creator_club',
   databaseSsl: env.DATABASE_SSL === 'true',
   jwtSecret: env.JWT_SECRET || 'dev-only-secret-do-not-use-in-production',
   appUrl: (env.APP_URL || 'http://localhost:5173').replace(/\/$/, ''),

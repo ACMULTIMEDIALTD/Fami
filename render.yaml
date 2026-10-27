@@ -1,7 +1,7 @@
 # Render Blueprint — API + Postgres. The React client deploys to Vercel (see client/vercel.json).
 services:
   - type: web
-    name: fami-api
+    name: creator-club-api
     runtime: node
     rootDir: server
     buildCommand: npm ci --omit=dev
@@ -11,7 +11,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        fromDatabase: { name: fami-db, property: connectionString }
+        fromDatabase: { name: creator-club-db, property: connectionString }
       - key: JWT_SECRET
         generateValue: true
       - key: APP_URL
@@ -35,5 +35,5 @@ services:
       - key: NOTIFY_EMAIL
         sync: false
 databases:
-  - name: fami-db
+  - name: creator-club-db
     plan: basic-256mb

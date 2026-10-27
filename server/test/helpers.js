@@ -1,5 +1,5 @@
 process.env.NODE_ENV = 'test';
-process.env.DATABASE_URL ||= process.env.TEST_DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/fami_test';
+process.env.DATABASE_URL ||= process.env.TEST_DATABASE_URL || 'postgres://postgres:postgres@localhost:5432/creator_club_test';
 process.env.CURRENT_TERMS_VERSION = '2026-10-v1';
 process.env.APP_URL = 'http://app.test';
 process.env.ADMIN_EMAIL = 'admin@test.local';

@@ -3,7 +3,7 @@ import { config } from '../config.js';
 import { one } from '../db.js';
 import { HttpError } from './http.js';
 
-export const COOKIE = 'fami_session';
+export const COOKIE = 'cc_session';
 const MAX_AGE_MS = 30 * 24 * 3600 * 1000; // 30 days — creators come back from WhatsApp links
 
 const cookieOpts = () => ({

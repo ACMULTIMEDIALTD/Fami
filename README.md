@@ -14,7 +14,7 @@ The same React app ships as a Capacitor app (`client/ios`, `client/android`) wit
 ## Demo (no server)
 
 `cd client && npm run build:demo` builds a self-contained demo into `client/dist-demo/`. It is the real UI with a simulated API running in the browser (`client/src/demo/`), uses invented sample data and has a bar for switching between Noa's view and a creator's view. Any static host can serve it.
-The `Demo → GitHub Pages` workflow publishes it to https://acmultimedialtd.github.io/Fami/ on every push to `main`. One-time setup: Settings → Pages → Source: **GitHub Actions**.
+The `Demo → GitHub Pages` workflow publishes it to https://acmultimedialtd.github.io/creator-club/ on every push to `main`. One-time setup: Settings → Pages → Source: **GitHub Actions**.
 `node scripts/demo-single-file.mjs out.html` (run from `client/`) inlines the demo into a single HTML file.
 The production build (`npm run build`) contains none of the demo code.
 
@@ -23,7 +23,7 @@ The production build (`npm run build`) contains none of the demo code.
 Requires Node 22.9+ and PostgreSQL 14+.
 
 ```bash
-createdb fami
+createdb creator_club
 cd server
 cp .env.example .env        # edit ADMIN_EMAIL / ADMIN_PASSWORD
 npm install
@@ -42,8 +42,8 @@ Extra admin: `npm run create-admin -- idan@example.com 'password'`.
 ### Tests
 
 ```bash
-createdb fami_test
-cd server && npm test       # uses TEST_DATABASE_URL or postgres://postgres:postgres@localhost:5432/fami_test
+createdb creator_club_test
+cd server && npm test       # uses TEST_DATABASE_URL or postgres://postgres:postgres@localhost:5432/creator_club_test
 ```
 The integration suite drops and recreates the `public` schema of that database. Never point it at real data.
 
