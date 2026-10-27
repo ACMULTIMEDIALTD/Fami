@@ -66,7 +66,8 @@ function eligibility(user, creator, c, app) {
 }
 
 const PUBLIC_FIELDS = ['slug', 'title', 'brand_display_name', 'short_description', 'type', 'product_value_ils', 'min_followers', 'platforms', 'required_niche_ids', 'region_ids', 'slots', 'deadline_apply', 'deadline_publish', 'status'];
-const pub = (c) => Object.fromEntries(PUBLIC_FIELDS.map((f) => [f, c[f] ?? null]));
+const imageUrl = (id) => (id && db.images?.[id]) || null;
+const pub = (c) => ({ ...Object.fromEntries(PUBLIC_FIELDS.map((f) => [f, c[f] ?? null])), image_url: imageUrl(c.image_id) });
 const myApp = (c, uid_) => {
   const a = db.applications.find((x) => x.campaign_id === c.id && x.creator_id === uid_);
   return a ? { id: a.id, status: a.status, message: a.message, applied_at: a.applied_at, decided_at: a.decided_at } : null;
@@ -79,7 +80,7 @@ const counts = (c) => {
     total_count: apps.filter((a) => a.status !== 'withdrawn').length,
   };
 };
-const adminCampaign = (c) => ({ ...clone(c), brand_name: db.brands.find((b) => b.id === c.brand_id)?.name || null, ...counts(c) });
+const adminCampaign = (c) => ({ ...clone(c), image_url: imageUrl(c.image_id), brand_name: db.brands.find((b) => b.id === c.brand_id)?.name || null, ...counts(c) });
 
 function creatorRow(u) {
   const c = creatorOf(u.id);
@@ -140,7 +141,7 @@ function validateCampaign(b, partial) {
     full_brief: (v) => v || null, type: (v) => v, product_value_ils: num, payment_note: (v) => v || null,
     min_followers: (v) => Number(v) || 0, platforms: (v) => v, required_niche_ids: (v) => (v?.length ? v : null),
     region_ids: (v) => (v?.length ? v : null), slots: Number, deadline_apply: (v) => new Date(v).toISOString(),
-    deadline_publish: (v) => v || null, slug: (v) => v || undefined,
+    deadline_publish: (v) => v || null, slug: (v) => v || undefined, image_id: (v) => v || null,
   };
   for (const [k, fn] of Object.entries(map)) if (k in b && b[k] !== undefined) { const v = fn(b[k]); if (v !== undefined) out[k] = v; }
   return out;
@@ -378,6 +379,13 @@ const routes = [
     const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
     u.password = Array.from({ length: 10 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('');
     return { password: u.password };
+  }],
+  ['POST', '/admin/images', (b) => {
+    requireAdmin();
+    if (!/^data:image\//.test(b.__dataUrl || '')) fail(400, 'invalid_image', 'אפשר להעלות רק תמונה');
+    const id = uid();
+    db.images = { ...(db.images || {}), [id]: b.__dataUrl };
+    return { id, url: b.__dataUrl };
   }],
   ['GET', '/admin/brands', () => {
     requireAdmin();

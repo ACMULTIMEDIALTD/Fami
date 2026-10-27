@@ -1,4 +1,5 @@
 import { pool } from '../db.js';
+import { imageUrl } from './images.js';
 
 /** Fields any logged-in creator may see. full_brief / payment_note / brand_id are NOT here (spec §3.2). */
 export const PUBLIC_CAMPAIGN_FIELDS = [
@@ -8,7 +9,7 @@ export const PUBLIC_CAMPAIGN_FIELDS = [
 ];
 
 export function publicCampaign(c) {
-  return Object.fromEntries(PUBLIC_CAMPAIGN_FIELDS.map((f) => [f, c[f]]));
+  return { ...Object.fromEntries(PUBLIC_CAMPAIGN_FIELDS.map((f) => [f, c[f]])), image_url: imageUrl(c.image_id) };
 }
 
 export async function lookupNames(client = pool) {

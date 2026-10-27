@@ -5,6 +5,7 @@ import creators from './creators.js';
 import brands from './brands.js';
 import campaigns from './campaigns.js';
 import applications from './applications.js';
+import uploads from './uploads.js';
 
 const router = Router();
 router.use(requireRole('admin'));
@@ -13,5 +14,6 @@ router.use('/creators', creators);
 router.use('/brands', brands);
 router.use('/campaigns', campaigns);
 router.use('/applications', applications);
+router.use('/images', uploads);
 
 export default router;

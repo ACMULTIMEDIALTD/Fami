@@ -339,3 +339,37 @@ test('admin resets a creator password', async () => {
   await agent().post('/api/v1/auth/login').send({ email: c.email, password: r.body.password }).expect(200);
   await c.agent.post(`/api/v1/admin/creators/${c.id}/reset-password`).expect(403);
 });
+
+test('campaign images: upload, signed URL, members only', async () => {
+  // 1x1 JPEG
+  const jpeg = Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', 'base64');
+  const creator = await makeCreator({ admin });
+
+  // Only real images, only admins
+  await admin.post('/api/v1/admin/images').set('Content-Type', 'image/jpeg').send(Buffer.from('not an image')).expect(400);
+  await creator.agent.post('/api/v1/admin/images').set('Content-Type', 'image/jpeg').send(jpeg).expect(403);
+  const up = await admin.post('/api/v1/admin/images').set('Content-Type', 'image/jpeg').send(jpeg).expect(201);
+  assert.ok(up.body.id);
+
+  const c = (await admin.post('/api/v1/admin/campaigns').send(campaignBody({ min_followers: 0, image_id: up.body.id })).expect(201)).body.campaign;
+  assert.match(c.image_url, /^\/api\/v1\/images\/[0-9a-f-]+\?exp=\d+&sig=/);
+
+  // Creators get a signed URL on the board and the campaign page
+  const board = await creator.agent.get('/api/v1/campaigns').expect(200);
+  const url = board.body.campaigns.find((x) => x.slug === c.slug).image_url;
+  assert.ok(url);
+  const detail = await creator.agent.get(`/api/v1/campaigns/${c.slug}`).expect(200);
+  assert.ok(detail.body.campaign.image_url);
+
+  // The signed URL works without a session; tampering or expiry is refused
+  const img = await agent().get(url).expect(200);
+  assert.equal(img.headers['content-type'], 'image/jpeg');
+  assert.equal(img.body.length, jpeg.length);
+  await agent().get(url.replace(/sig=[^&]+/, 'sig=AAAA')).expect(403);
+  await agent().get(url.replace(/exp=\d+/, 'exp=1')).expect(403);
+  await agent().get(`/api/v1/images/${up.body.id}`).expect(403);
+
+  // Removing the image from the campaign
+  const patched = await admin.patch(`/api/v1/admin/campaigns/${c.id}`).send({ image_id: null }).expect(200);
+  assert.equal(patched.body.campaign.image_url, null);
+});
