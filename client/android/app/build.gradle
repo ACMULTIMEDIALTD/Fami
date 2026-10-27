@@ -9,7 +9,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
-        manifestPlaceholders = [appLinkHost: project.findProperty('appLinkHost') ?: 'club.example.co.il']
+        manifestPlaceholders = [appLinkHost: project.findProperty('appLinkHost') ?: 'club.noaavital.co.il']
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

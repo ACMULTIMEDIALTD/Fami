@@ -8,7 +8,7 @@
 	<!-- Links to the site (https://<host>/c/..., /m/...) open the app. Replace with the real site host. -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:club.example.co.il</string>
+		<string>applinks:club.noaavital.co.il</string>
 	</array>
 </dict>
 </plist>

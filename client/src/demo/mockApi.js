@@ -470,7 +470,7 @@ const routes = [
         `${c.brand_display_name} · ${TYPE[c.type]} · מינימום ${c.min_followers.toLocaleString('en-US')} עוקבים`,
         c.short_description,
         `${c.slots} מקומות · הגשה עד ${ddmm(c.deadline_apply)}`,
-        `👉 https://club.example.co.il/c/${c.slug}`,
+        `👉 https://club.noaavital.co.il/c/${c.slug}`,
       ].join('\n'),
     };
   }],

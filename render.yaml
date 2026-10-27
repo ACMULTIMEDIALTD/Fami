@@ -15,9 +15,9 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: APP_URL
-        sync: false          # e.g. https://club.noaavital.co.il
+        value: https://club.noaavital.co.il
       - key: CORS_ORIGIN
-        sync: false          # same as APP_URL
+        value: https://club.noaavital.co.il
       - key: CURRENT_TERMS_VERSION
         value: 2026-10-v1
       - key: TERMS_PDF_URL

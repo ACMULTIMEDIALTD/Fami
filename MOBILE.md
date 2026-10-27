@@ -28,7 +28,7 @@
 | מה | איפה |
 |---|---|
 | כתובת השרת (Render) | `client/.env.app` → `VITE_API_URL` |
-| הדומיין של האתר | `client/android/gradle.properties` → `appLinkHost`, ‏`client/ios/App/App/App.entitlements` → `applinks:` |
+| הדומיין של האתר (כבר מוגדר: `club.noaavital.co.il`) | `client/android/gradle.properties` → `appLinkHost`, ‏`client/ios/App/App/App.entitlements` → `applinks:` |
 | Apple Team ID | `client/public/.well-known/apple-app-site-association` |
 | טביעת האצבע (SHA-256) של חתימת Google Play | `client/public/.well-known/assetlinks.json` (נמצאת ב-Play Console ← App integrity) |
 
