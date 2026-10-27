@@ -8,6 +8,7 @@ import Layout from './components/Layout.jsx';
 import Landing from './pages/Landing.jsx';
 import Brands from './pages/Brands.jsx';
 import Terms from './pages/Terms.jsx';
+import Install from './pages/Install.jsx';
 import Join from './pages/Join.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -33,6 +34,7 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/brands" element={<Brands />} />
       <Route path="/terms" element={<Terms />} />
+      <Route path="/install" element={<Install />} />
       <Route element={<Layout />}>
         <Route path="/join" element={<Join />} />
         <Route path="/login" element={<Login />} />
