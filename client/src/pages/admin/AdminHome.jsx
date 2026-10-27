@@ -6,6 +6,22 @@ import { fmtK, fmtDate } from '../../labels.js';
 import { ErrorBox, Empty, TypeBadge, CampaignStatusChip } from '../../components/ui.jsx';
 import { DeadlineText } from '../../components/CampaignCard.jsx';
 
+/** The install-guide link, ready to paste and pin in the WhatsApp group. */
+function InstallLinkBox() {
+  const [copied, setCopied] = useState(false);
+  const url = `${window.location.origin}/install`;
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(`📲 איך מוסיפים את הקהילה למסך הבית (פעם אחת, דקה):\n${url}`); setCopied(true); } catch { /* select manually */ }
+  };
+  return (
+    <div className="share-box">
+      <span className="grow small">קישור למדריך ״הוספה למסך הבית״, לנעוץ בקבוצה:</span>
+      <code>{url}</code>
+      <button className="btn ghost sm" onClick={copy}>{copied ? 'הועתק ✓' : 'העתקת הודעה'}</button>
+    </div>
+  );
+}
+
 export default function AdminHome() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -31,6 +47,7 @@ export default function AdminHome() {
         <Link to="/admin/campaigns/new" className="btn primary">+ קמפיין חדש</Link>
       </div>
       <ErrorBox error={error} />
+      <InstallLinkBox />
       <div className="stats">
         <div className="stat"><b>{stats.active}</b><span>חברות פעילות</span></div>
         <div className="stat"><b>{stats.pending_complete}</b><span>ממתינות לאישור</span></div>
