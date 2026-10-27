@@ -171,7 +171,7 @@ const APPLICANTS_SQL = `
          cr.instagram_handle, cr.instagram_followers, cr.tiktok_handle, cr.tiktok_followers, cr.youtube_url,
          GREATEST(COALESCE(cr.instagram_followers, 0), COALESCE(cr.tiktok_followers, 0)) AS max_followers,
          cr.audience_gender, cr.audience_age_min, cr.audience_age_max, cr.audience_sector,
-         cr.rate_post_ils, cr.rate_story_ils, cr.rate_reel_ils, cr.tier, cr.internal_rating,
+         cr.tier, cr.internal_rating,
          COALESCE((SELECT array_agg(n.name ORDER BY n.sort) FROM creator_niches cn JOIN niches n ON n.id = cn.niche_id
                    WHERE cn.creator_id = u.id), '{}') AS niches
   FROM applications a

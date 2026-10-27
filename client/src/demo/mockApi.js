@@ -115,7 +115,6 @@ function validateProfile(b, creating) {
     audience_gender: b.audience_gender || null, audience_age_min: num(b.audience_age_min), audience_age_max: num(b.audience_age_max),
     audience_sector: b.audience_sector || null,
     open_to_paid: !!b.open_to_paid, open_to_barter: !!b.open_to_barter, open_to_events: !!b.open_to_events, open_to_affiliate: !!b.open_to_affiliate,
-    rate_post_ils: num(b.rate_post_ils), rate_story_ils: num(b.rate_story_ils), rate_reel_ils: num(b.rate_reel_ils),
     billing_status: b.billing_status || 'none',
     niche_ids: [...new Set(b.niches)],
     links: (b.links || []).map((l, i) => ({ id: `l${i}`, url: l.url, label: l.label || null })),

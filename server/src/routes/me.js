@@ -47,9 +47,6 @@ const profileSchema = z.object({
   open_to_barter: z.boolean().default(true),
   open_to_events: z.boolean().default(false),
   open_to_affiliate: z.boolean().default(false),
-  rate_post_ils: optInt(0, 1_000_000),
-  rate_story_ils: optInt(0, 1_000_000),
-  rate_reel_ils: optInt(0, 1_000_000),
   billing_status: z.enum(['osek_patur', 'osek_murshe', 'company', 'none']).default('none'),
 
   niches: z.array(z.number().int().positive()).min(1, 'יש לבחור לפחות תחום אחד').max(5, 'עד 5 תחומים'),
@@ -68,7 +65,7 @@ const PROFILE_COLUMNS = [
   'instagram_handle', 'instagram_followers', 'tiktok_handle', 'tiktok_followers', 'youtube_url', 'other_platforms',
   'audience_gender', 'audience_age_min', 'audience_age_max', 'audience_sector',
   'open_to_paid', 'open_to_barter', 'open_to_events', 'open_to_affiliate',
-  'billing_status', // rate_*_ils are no longer asked in the creator form; saving the profile keeps stored values
+  'billing_status',
 ];
 
 router.get('/profile', async (req, res) => {

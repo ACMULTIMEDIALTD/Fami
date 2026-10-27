@@ -36,7 +36,7 @@ export function seedState() {
       instagram_handle: ig, instagram_followers: igF, tiktok_handle: tt, tiktok_followers: ttF, youtube_url: null, other_platforms: null,
       audience_gender: i % 4 === 3 ? 'mixed' : 'mostly_women', audience_age_min: 22 + (i % 3) * 3, audience_age_max: 38 + (i % 4) * 3, audience_sector: 'כללי',
       open_to_paid: paid, open_to_barter: barter, open_to_events: i % 2 === 0, open_to_affiliate: i % 3 === 0,
-      rate_post_ils: post, rate_story_ils: story, rate_reel_ils: reel, billing_status: post ? (i % 3 ? 'osek_patur' : 'osek_murshe') : 'none',
+      billing_status: post ? (i % 3 ? 'osek_patur' : 'osek_murshe') : 'none',
       niche_ids, links: [{ id: 'l0', url: `https://instagram.com/${ig}`, label: 'הפרופיל שלי' }],
       tier, admin_notes: i === 0 ? 'עובדת מעולה, תמיד בזמן. מתאימה למותגי פרימיום.' : null, internal_rating: rating,
       terms_version: TERMS_VERSION, terms_accepted_at: iso(-ago, 10, 15), terms_ip: '84.229.0.' + (10 + i),

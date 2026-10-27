@@ -58,7 +58,7 @@ async function listCreators(q) {
             ${MAX_F} AS max_followers,
             c.audience_gender, c.audience_age_min, c.audience_age_max, c.audience_sector,
             c.open_to_paid, c.open_to_barter, c.open_to_events, c.open_to_affiliate,
-            c.rate_post_ils, c.rate_story_ils, c.rate_reel_ils, c.billing_status,
+            c.billing_status,
             c.tier, c.internal_rating, c.admin_notes, c.terms_version, c.terms_accepted_at,
             COALESCE((SELECT array_agg(n.name ORDER BY n.sort) FROM creator_niches cn JOIN niches n ON n.id = cn.niche_id
                       WHERE cn.creator_id = u.id), '{}') AS niches,
@@ -98,9 +98,6 @@ export const CREATOR_CSV_COLUMNS = [
   ['קהל', (r) => GENDER[r.audience_gender]],
   ['גילאי קהל', (r) => (r.audience_age_min || r.audience_age_max ? `${r.audience_age_min ?? ''}-${r.audience_age_max ?? ''}` : '')],
   ['מגזר', (r) => r.audience_sector],
-  ['תעריף פוסט', (r) => r.rate_post_ils],
-  ['תעריף סטורי', (r) => r.rate_story_ils],
-  ['תעריף רילס', (r) => r.rate_reel_ils],
 ];
 
 const ADMIN_CSV_COLUMNS = [

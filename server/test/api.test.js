@@ -374,11 +374,14 @@ test('campaign images: upload, signed URL, members only', async () => {
   assert.equal(patched.body.campaign.image_url, null);
 });
 
-test('saving the profile keeps rates entered earlier (no longer in the form)', async () => {
-  const c = await makeCreator({ admin, rate_reel_ils: 700 });
-  await pool.query('UPDATE creators SET rate_reel_ils = 700 WHERE user_id = $1', [c.id]);
-  await c.agent.put('/api/v1/me/profile').send(profile({ full_name: 'שם חדש' })).expect(200);
-  const { rows } = await pool.query('SELECT rate_reel_ils, full_name FROM creators WHERE user_id = $1', [c.id]);
-  assert.equal(rows[0].rate_reel_ils, 700);
-  assert.equal(rows[0].full_name, 'שם חדש');
+test('rates are gone from the profile, admin views and CSV', async () => {
+  const c = await makeCreator({ admin });
+  const me = await c.agent.get('/api/v1/me/profile').expect(200);
+  assert.ok(!Object.keys(me.body.profile).some((k) => k.startsWith('rate_')));
+  const a = await admin.get(`/api/v1/admin/creators/${c.id}`).expect(200);
+  assert.ok(!Object.keys(a.body.profile).some((k) => k.startsWith('rate_')));
+  const list = await admin.get('/api/v1/admin/creators').expect(200);
+  assert.ok(!Object.keys(list.body.creators[0]).some((k) => k.startsWith('rate_')));
+  const csv = await admin.get('/api/v1/admin/creators/export.csv').expect(200);
+  assert.ok(!csv.text.includes('תעריף'));
 });

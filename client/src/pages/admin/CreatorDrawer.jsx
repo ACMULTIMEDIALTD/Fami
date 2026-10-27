@@ -132,7 +132,6 @@ export default function CreatorDrawer({ id, meta, onClose, onChanged }) {
                 <h3>מסחרי</h3>
                 <dl className="kv">
                   <dt>פתוחה ל</dt><dd>{[p.open_to_paid && 'תשלום', p.open_to_barter && 'בארטר', p.open_to_events && 'אירועים', p.open_to_affiliate && 'שותפים'].filter(Boolean).join(', ') || '—'}</dd>
-                  <dt>תעריפים</dt><dd>{[['פוסט', p.rate_post_ils], ['סטורי', p.rate_story_ils], ['רילס', p.rate_reel_ils]].filter(([, v]) => v != null).map(([k, v]) => `${k} ₪${fmtNum(v)}`).join(' · ') || '—'}</dd>
                   <dt>סטטוס עסקי</dt><dd>{BILLING[p.billing_status]}</dd>
                   <dt>תנאים</dt><dd><bdi>{p.terms_version}</bdi> · {fmtDateTime(p.terms_accepted_at)}{p.terms_ip && <> · <bdi>{p.terms_ip}</bdi></>}</dd>
                 </dl>
