@@ -38,6 +38,10 @@ const signupSchema = z.object({
 
 router.post('/signup', limiter, async (req, res) => {
   const { email, phone, password } = parse(signupSchema, req.body);
+  if (!password && !config.mailEnabled) {
+    // No email sign-in links yet → without a password she could never log in again
+    throw new HttpError(400, 'validation_error', 'יש לבחור סיסמה', { fields: { password: 'יש לבחור סיסמה (8 תווים לפחות)' } });
+  }
   const exists = await one('SELECT email, phone FROM users WHERE email = $1 OR phone = $2', [email, phone]);
   if (exists) {
     const field = exists.email.toLowerCase() === email ? 'email' : 'phone';
@@ -67,6 +71,9 @@ router.post('/login', limiter, async (req, res) => {
   const user = await one('SELECT id, email, phone, role, status, password_hash FROM users WHERE email = $1', [email]);
 
   if (!password) {
+    if (!config.mailEnabled) {
+      throw new HttpError(400, 'mail_disabled', 'כניסה עם קישור למייל לא זמינה כרגע. היכנסי עם סיסמה.');
+    }
     // Magic link. Same response whether or not the email exists (no account enumeration).
     if (user && !['suspended', 'left'].includes(user.status)) {
       const token = crypto.randomBytes(32).toString('base64url');

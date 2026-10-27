@@ -4,6 +4,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../auth.jsx';
 import { Field, ErrorBox } from '../components/ui.jsx';
+import { useMeta } from '../meta.js';
 
 const safeNext = (n) => (n && /^\/(?![/\\])/.test(n) ? n : null);
 
@@ -12,7 +13,11 @@ export default function Login() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const next = safeNext(params.get('next'));
-  const [mode, setMode] = useState('magic'); // creators hate passwords
+  const meta = useMeta();
+  const mailEnabled = meta?.mail_enabled !== false;
+  const [chosenMode, setMode] = useState('magic'); // creators hate passwords
+  // Until email is set up on the server, sign-in links can't be sent: password only
+  const mode = mailEnabled ? chosenMode : 'password';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
@@ -73,9 +78,12 @@ export default function Login() {
         <button className="btn primary block" disabled={busy}>
           {busy ? 'רגע…' : mode === 'magic' ? 'שלחו לי קישור כניסה' : 'כניסה'}
         </button>
-        <button type="button" className="linklike center-text" onClick={() => setMode(mode === 'magic' ? 'password' : 'magic')}>
-          {mode === 'magic' ? 'כניסה עם סיסמה' : 'כניסה עם קישור למייל (בלי סיסמה)'}
-        </button>
+        {mailEnabled && (
+          <button type="button" className="linklike center-text" onClick={() => setMode(mode === 'magic' ? 'password' : 'magic')}>
+            {mode === 'magic' ? 'כניסה עם סיסמה' : 'כניסה עם קישור למייל (בלי סיסמה)'}
+          </button>
+        )}
+        {!mailEnabled && <p className="small muted center-text">שכחת סיסמה? כתבי לנועה בווטסאפ.</p>}
       </form>
       <p className="center-text">עדיין לא בקהילה? <Link to="/join">להרשמה</Link></p>
     </div>

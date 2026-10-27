@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../../api.js';
 import { Spinner } from '../../auth.jsx';
 import { BILLING, GENDER, USER_STATUS, TIERS, fmtNum, fmtDate, fmtDateTime } from '../../labels.js';
-import { ErrorBox, AppStatusChip, igUrl, ttUrl } from '../../components/ui.jsx';
+import { ErrorBox, AppStatusChip, ConfirmButton, igUrl, ttUrl } from '../../components/ui.jsx';
 
 const EVENT_LABELS = {
   signup: 'נרשמה', login: 'התחברה', profile_created: 'השלימה פרופיל', profile_updated: 'עדכנה פרופיל',
@@ -15,6 +15,8 @@ export default function CreatorDrawer({ id, meta, onClose, onChanged }) {
   const [error, setError] = useState(null);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [tempPassword, setTempPassword] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const load = () => api.get(`/admin/creators/${id}`).then((d) => { setData(d); setNotes(d.profile?.admin_notes || ''); }).catch(setError);
   useEffect(() => { setData(null); load(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -28,6 +30,19 @@ export default function CreatorDrawer({ id, meta, onClose, onChanged }) {
     setSaving(true);
     setError(null);
     try { await api.patch(`/admin/creators/${id}`, body); await load(); onChanged(); } catch (e) { setError(e); } finally { setSaving(false); }
+  };
+
+  const resetPassword = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const r = await api.post(`/admin/creators/${id}/reset-password`);
+      setTempPassword(r.password);
+      setCopied(false);
+    } catch (e) { setError(e); } finally { setSaving(false); }
+  };
+  const copyPassword = async () => {
+    try { await navigator.clipboard.writeText(tempPassword); setCopied(true); } catch { /* user can select it */ }
   };
 
   const u = data?.user;
@@ -71,6 +86,26 @@ export default function CreatorDrawer({ id, meta, onClose, onChanged }) {
               )}
             </div>
             {u.status === 'pending' && p && <button className="btn primary block" disabled={saving} onClick={() => patch({ status: 'active' })}>אישור חברות</button>}
+
+            {tempPassword ? (
+              <div className="temp-password">
+                <p>סיסמה חדשה ל{p?.full_name?.split(' ')[0] || 'יוצרת'}. שלחי לה אותה בווטסאפ. הסיסמה מוצגת רק עכשיו.</p>
+                <div className="row-inline">
+                  <code dir="ltr">{tempPassword}</code>
+                  <button type="button" className="btn ghost sm" onClick={copyPassword}>{copied ? 'הועתק ✓' : 'העתקה'}</button>
+                  {u.phone && (
+                    <a className="btn whatsapp sm" target="_blank" rel="noreferrer"
+                      href={`https://wa.me/972${u.phone.replace(/^0/, '')}?text=${encodeURIComponent(`הסיסמה החדשה שלך לקהילה: ${tempPassword}\nכניסה עם המייל ${u.email}`)}`}>
+                      שליחה בווטסאפ
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <ConfirmButton className="btn ghost sm" disabled={saving} ask="ליצור לה סיסמה חדשה? הסיסמה הקודמת תפסיק לעבוד." onConfirm={resetPassword}>
+                איפוס סיסמה
+              </ConfirmButton>
+            )}
 
             {!p ? <p className="alert">היוצרת נרשמה ועדיין לא השלימה פרופיל.</p> : (
               <>

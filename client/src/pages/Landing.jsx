@@ -40,7 +40,9 @@ export default function Landing() {
         </div>
       </section>
 
-      <footer className="landing-footer">© The Creator Club · Noa Avital</footer>
+      <footer className="landing-footer">
+        © The Creator Club · Noa Avital · <Link to="/terms">תנאי הקהילה ופרטיות</Link>
+      </footer>
     </div>
   );
 }

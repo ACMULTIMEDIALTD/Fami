@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { BILLING, GENDER, SECTORS } from '../labels.js';
 import { Field, ErrorBox, Toggle } from './ui.jsx';
+import TermsDialog from './TermsDialog.jsx';
 
 export const STEPS = ['פרטים', 'רשתות', 'קהל ותחומים', 'תעריפים ותנאים'];
 
@@ -48,6 +49,7 @@ export default function ProfileWizard({ initial, requireTerms, terms, submitLabe
   const [f, setF] = useState(() => fromProfile(initial));
   const [step, setStep] = useState(0);
   const [termsOk, setTermsOk] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const [errors, setErrors] = useState({});
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -227,13 +229,14 @@ export default function ProfileWizard({ initial, requireTerms, terms, submitLabe
                   <input type="checkbox" checked={termsOk} onChange={(e) => setTermsOk(e.target.checked)} />
                   <span>
                     קראתי ואני מסכימה ל
-                    {terms.pdf_url ? <a href={terms.pdf_url} target="_blank" rel="noreferrer">תנאי הקהילה</a> : 'תנאי הקהילה'}
-                    {' '}(גרסה {terms.version})
+                    <button type="button" className="linklike" onClick={() => setShowTerms(true)}>תנאי הקהילה</button>
+                    {' '}(גרסה <bdi dir="ltr">{terms.version}</bdi>)
                   </span>
                 </label>
                 {E.terms_accept && <span className="field-error">{E.terms_accept}</span>}
               </div>
             )}
+            {showTerms && <TermsDialog onClose={() => setShowTerms(false)} />}
           </>
         )}
 
