@@ -7,6 +7,7 @@ import { RequireAuth } from './auth.jsx';
 import Layout from './components/Layout.jsx';
 import Landing from './pages/Landing.jsx';
 import Brands from './pages/Brands.jsx';
+import Terms from './pages/Terms.jsx';
 import Join from './pages/Join.jsx';
 import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -31,6 +32,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/brands" element={<Brands />} />
+      <Route path="/terms" element={<Terms />} />
       <Route element={<Layout />}>
         <Route path="/join" element={<Join />} />
         <Route path="/login" element={<Login />} />

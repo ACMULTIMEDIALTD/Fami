@@ -26,6 +26,9 @@ export const config = {
   adminEmail: env.ADMIN_EMAIL || '',
   adminPassword: env.ADMIN_PASSWORD || '',
   smtpUrl: env.SMTP_URL || '',
+  // Without SMTP in production nothing can be emailed, so sign-in links are switched off and a
+  // password is required at signup. In dev/test mail is printed to the log instead.
+  mailEnabled: !!env.SMTP_URL || !isProd,
   mailFrom: env.MAIL_FROM || 'no-reply@example.com',
   notifyEmail: env.NOTIFY_EMAIL || env.ADMIN_EMAIL || '',
   // Firebase service-account JSON (one line) — enables push notifications to the app

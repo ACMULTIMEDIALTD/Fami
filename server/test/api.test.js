@@ -313,3 +313,29 @@ test('server survives the database dropping idle connections', async () => {
   // Still alive and the pool reconnects
   await agent().get('/api/v1/public/meta').expect(200);
 });
+
+test('without email configured: password required, sign-in links off', async () => {
+  const { config } = await import('../src/config.js');
+  config.mailEnabled = false;
+  try {
+    const meta = await agent().get('/api/v1/public/meta').expect(200);
+    assert.equal(meta.body.mail_enabled, false);
+    const r = await agent().post('/api/v1/auth/signup').send({ email: 'nopass@test.local', phone: '0549990000' }).expect(400);
+    assert.ok(r.body.fields.password);
+    await agent().post('/api/v1/auth/signup').send({ email: 'nopass@test.local', phone: '0549990000', password: 'password123' }).expect(201);
+    const m = await agent().post('/api/v1/auth/login').send({ email: 'nopass@test.local' }).expect(400);
+    assert.equal(m.body.error, 'mail_disabled');
+    await agent().post('/api/v1/auth/login').send({ email: 'nopass@test.local', password: 'password123' }).expect(200);
+  } finally {
+    config.mailEnabled = true;
+  }
+});
+
+test('admin resets a creator password', async () => {
+  const c = await makeCreator({ admin });
+  const r = await admin.post(`/api/v1/admin/creators/${c.id}/reset-password`).expect(200);
+  assert.match(r.body.password, /^[a-z2-9]{10}$/);
+  await agent().post('/api/v1/auth/login').send({ email: c.email, password: 'password123' }).expect(401);
+  await agent().post('/api/v1/auth/login').send({ email: c.email, password: r.body.password }).expect(200);
+  await c.agent.post(`/api/v1/admin/creators/${c.id}/reset-password`).expect(403);
+});

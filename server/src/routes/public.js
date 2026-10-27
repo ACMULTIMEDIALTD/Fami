@@ -19,6 +19,7 @@ router.get('/meta', async (_req, res) => {
     niches: niches.rows,
     regions: regions.rows,
     terms: { version: config.termsVersion, pdf_url: config.termsPdfUrl },
+    mail_enabled: config.mailEnabled,
   });
 });
 

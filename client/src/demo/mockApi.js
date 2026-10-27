@@ -208,7 +208,7 @@ const routes = [
       whatsapp_group_url: u.status === 'active' ? 'https://chat.whatsapp.com/' : null,
     };
   }],
-  ['GET', '/public/meta', () => ({ niches: db.niches, regions: db.regions, terms: { version: TERMS_VERSION, pdf_url: '' } })],
+  ['GET', '/public/meta', () => ({ niches: db.niches, regions: db.regions, terms: { version: TERMS_VERSION, pdf_url: '' }, mail_enabled: true })],
   ['POST', '/public/brand-inquiry', (b) => {
     const f = {};
     if (!(b.name || '').trim()) f.name = 'שדה חובה';
@@ -371,6 +371,14 @@ const routes = [
     return { creator: { id, status: u.status, tier: c?.tier, admin_notes: c?.admin_notes, internal_rating: c?.internal_rating } };
   }],
 
+  ['POST', '/admin/creators/:id/reset-password', (_b, { id }) => {
+    requireAdmin();
+    const u = userOf(id);
+    if (!u || u.role !== 'creator') fail(404, 'creator_not_found');
+    const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+    u.password = Array.from({ length: 10 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('');
+    return { password: u.password };
+  }],
   ['GET', '/admin/brands', () => {
     requireAdmin();
     return { brands: db.brands.map((b) => ({ ...b, campaign_count: db.campaigns.filter((c) => c.brand_id === b.id).length })).sort((a, b) => a.name.localeCompare(b.name, 'he')) };

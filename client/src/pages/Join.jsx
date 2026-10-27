@@ -5,8 +5,11 @@ import { api } from '../api.js';
 import { useAuth, Spinner } from '../auth.jsx';
 import { Field, ErrorBox } from '../components/ui.jsx';
 import ProfileWizard from '../components/ProfileWizard.jsx';
+import { useMeta } from '../meta.js';
 
 function AccountStep({ onDone }) {
+  const meta = useMeta();
+  const passwordOptional = meta?.mail_enabled === true;
   const [f, setF] = useState({ email: '', phone: '', password: '' });
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -35,7 +38,12 @@ function AccountStep({ onDone }) {
       <Field label="טלפון נייד" required error={fe.phone}>
         <input type="tel" dir="ltr" value={f.phone} onChange={set('phone')} autoComplete="tel" placeholder="050-0000000" />
       </Field>
-      <Field label="סיסמה (לא חובה)" error={fe.password} hint="אפשר לוותר. נשלח לך קישור כניסה למייל בכל פעם.">
+      <Field
+        label={passwordOptional ? 'סיסמה (לא חובה)' : 'סיסמה'}
+        required={!passwordOptional}
+        error={fe.password}
+        hint={passwordOptional ? 'אפשר לוותר. נשלח לך קישור כניסה למייל בכל פעם.' : '8 תווים לפחות. איתה תיכנסי בפעם הבאה.'}
+      >
         <input type="password" dir="ltr" value={f.password} onChange={set('password')} autoComplete="new-password" />
       </Field>
       <ErrorBox error={error && !Object.keys(fe).length ? error : null} />

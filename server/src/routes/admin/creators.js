@@ -1,4 +1,6 @@
+import crypto from 'node:crypto';
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { one, query, tx } from '../../db.js';
 import { HttpError, notFound, parse } from '../../lib/http.js';
@@ -197,6 +199,25 @@ router.patch('/:id', async (req, res) => {
     [req.params.id],
   );
   res.json({ creator: { id: req.params.id, ...fresh } });
+});
+
+/**
+ * Noa sets a temporary password for a creator who forgot hers (until email sign-in links exist).
+ * Shown once in the response; Noa sends it on WhatsApp and the creator can keep using it.
+ */
+router.post('/:id/reset-password', async (req, res) => {
+  if (!uuid.safeParse(req.params.id).success) throw notFound('creator_not_found');
+  // No look-alike characters (0/O, 1/l/I) so it can be typed from a WhatsApp message
+  const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const password = Array.from(crypto.randomBytes(10), (b) => alphabet[b % alphabet.length]).join('');
+  const hash = await bcrypt.hash(password, 12);
+  const user = await one(
+    `UPDATE users SET password_hash = $2 WHERE id = $1 AND role = 'creator' RETURNING id`,
+    [req.params.id, hash],
+  );
+  if (!user) throw notFound('creator_not_found');
+  await logEvent(req.user.id, 'password_reset_by_admin', { creator_id: user.id });
+  res.json({ password });
 });
 
 export default router;
