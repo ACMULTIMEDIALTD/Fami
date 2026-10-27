@@ -34,6 +34,7 @@ if (!DEMO) {
     nl_pos: 'bl', // bottom-left: the right side has the app's own buttons in RTL
     nl_color: 'red', // closest of the widget's palettes to the brand burgundy
     nl_dir: '/nagishli/nl-files/',
+    nl_link: '/accessibility', // the widget's "accessibility statement" item opens our page
   });
   const s = document.createElement('script');
   s.src = '/nagishli/nagishli.js?v=2.3';
