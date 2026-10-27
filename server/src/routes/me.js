@@ -47,15 +47,13 @@ const profileSchema = z.object({
   open_to_barter: z.boolean().default(true),
   open_to_events: z.boolean().default(false),
   open_to_affiliate: z.boolean().default(false),
-  rate_post_ils: optInt(0, 1_000_000),
-  rate_story_ils: optInt(0, 1_000_000),
-  rate_reel_ils: optInt(0, 1_000_000),
   billing_status: z.enum(['osek_patur', 'osek_murshe', 'company', 'none']).default('none'),
 
   niches: z.array(z.number().int().positive()).min(1, 'יש לבחור לפחות תחום אחד').max(5, 'עד 5 תחומים'),
   links: z.array(z.object({ url, label: optText(80) })).max(10).default([]),
 
-  terms_accept: z.object({ version: z.string() }).optional(),
+  // read_to_end: the client unlocks the checkbox only after the terms were scrolled to the end
+  terms_accept: z.object({ version: z.string(), read_to_end: z.boolean().optional() }).optional(),
 })
   .refine((p) => p.instagram_handle || p.tiktok_handle, { path: ['instagram_handle'], message: 'יש להזין לפחות חשבון אינסטגרם או טיקטוק' })
   .refine((p) => !p.instagram_handle || p.instagram_followers != null, { path: ['instagram_followers'], message: 'כמה עוקבים יש באינסטגרם?' })
@@ -68,7 +66,7 @@ const PROFILE_COLUMNS = [
   'instagram_handle', 'instagram_followers', 'tiktok_handle', 'tiktok_followers', 'youtube_url', 'other_platforms',
   'audience_gender', 'audience_age_min', 'audience_age_max', 'audience_sector',
   'open_to_paid', 'open_to_barter', 'open_to_events', 'open_to_affiliate',
-  'billing_status', // rate_*_ils are no longer asked in the creator form; saving the profile keeps stored values
+  'billing_status',
 ];
 
 router.get('/profile', async (req, res) => {
@@ -117,7 +115,10 @@ router.put('/profile', async (req, res) => {
         [req.user.id, link.url, link.label, i]);
     }
 
-    if (accepting) await logEvent(req.user.id, 'terms_accepted', { version: config.termsVersion, ip: req.ip }, db);
+    if (accepting) {
+      await logEvent(req.user.id, 'terms_accepted',
+        { version: config.termsVersion, ip: req.ip, read_to_end: data.terms_accept.read_to_end === true }, db);
+    }
     await logEvent(req.user.id, existing ? 'profile_updated' : 'profile_created', null, db);
   });
 
@@ -129,7 +130,7 @@ router.put('/profile', async (req, res) => {
 
 /** Re-accept updated terms (the forced modal on login, spec §3.3). */
 router.post('/terms', async (req, res) => {
-  const { version } = parse(z.object({ version: z.string() }), req.body);
+  const { version, read_to_end } = parse(z.object({ version: z.string(), read_to_end: z.boolean().optional() }), req.body);
   if (version !== config.termsVersion) {
     throw new HttpError(409, 'terms_version_mismatch', 'גרסת התנאים התעדכנה — יש לרענן את הדף', { current: config.termsVersion });
   }
@@ -139,7 +140,7 @@ router.post('/terms', async (req, res) => {
     [req.user.id, version, req.ip],
   );
   if (!row) throw new HttpError(400, 'no_profile', 'יש להשלים את הפרופיל');
-  await logEvent(req.user.id, 'terms_accepted', { version, ip: req.ip });
+  await logEvent(req.user.id, 'terms_accepted', { version, ip: req.ip, read_to_end: read_to_end === true });
   res.json(row);
 });
 

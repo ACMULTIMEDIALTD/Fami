@@ -1,3 +1,4 @@
+import BuiltBy from '../components/BuiltBy.jsx';
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import logoUrl from '../assets/logo.jpg';
@@ -95,6 +96,7 @@ export default function Install() {
             : <AndroidSteps inApp={inApp && isAndroid()} canInstall={canInstall} install={doInstall} />}
         </div>
       )}
+      <footer className="landing-footer"><BuiltBy /></footer>
     </div>
   );
 }

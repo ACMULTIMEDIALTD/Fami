@@ -28,7 +28,10 @@ function buildFilters(q) {
   const params = [];
   const p = (v) => { params.push(v); return `$${params.length}`; };
 
-  if (q.q?.trim()) {
+  const codeMatch = q.q?.trim().match(/^C-?([0-9a-f]{6})$/i);
+  if (codeMatch) {
+    where.push(`replace(u.id::text, '-', '') LIKE ${p(`${codeMatch[1].toLowerCase()}%`)}`);
+  } else if (q.q?.trim()) {
     const term = p(`%${q.q.trim().replace(/^@/, '')}%`);
     where.push(`(c.full_name ILIKE ${term} OR u.email ILIKE ${term} OR u.phone ILIKE ${term}
       OR c.instagram_handle ILIKE ${term} OR c.tiktok_handle ILIKE ${term} OR c.city ILIKE ${term})`);
@@ -58,7 +61,7 @@ async function listCreators(q) {
             ${MAX_F} AS max_followers,
             c.audience_gender, c.audience_age_min, c.audience_age_max, c.audience_sector,
             c.open_to_paid, c.open_to_barter, c.open_to_events, c.open_to_affiliate,
-            c.rate_post_ils, c.rate_story_ils, c.rate_reel_ils, c.billing_status,
+            c.billing_status,
             c.tier, c.internal_rating, c.admin_notes, c.terms_version, c.terms_accepted_at,
             COALESCE((SELECT array_agg(n.name ORDER BY n.sort) FROM creator_niches cn JOIN niches n ON n.id = cn.niche_id
                       WHERE cn.creator_id = u.id), '{}') AS niches,
@@ -98,12 +101,38 @@ export const CREATOR_CSV_COLUMNS = [
   ['קהל', (r) => GENDER[r.audience_gender]],
   ['גילאי קהל', (r) => (r.audience_age_min || r.audience_age_max ? `${r.audience_age_min ?? ''}-${r.audience_age_max ?? ''}` : '')],
   ['מגזר', (r) => r.audience_sector],
-  ['תעריף פוסט', (r) => r.rate_post_ils],
-  ['תעריף סטורי', (r) => r.rate_story_ils],
-  ['תעריף רילס', (r) => r.rate_reel_ils],
+];
+
+/**
+ * Short stable code per creator. Appears in both files, so when a brand picks "C-3F9A12" from the
+ * anonymous list, Noa finds her in her own file.
+ */
+export const creatorCode = (id) => `C-${String(id).replace(/-/g, '').slice(0, 6).toUpperCase()}`;
+
+const thisYear = () => new Date().getFullYear();
+
+/**
+ * For brands: everything that helps them choose, nothing that identifies or lets them reach the
+ * creator directly (no name, contact details, handles, links or city). Keeps Noa in the middle.
+ */
+const BRAND_CSV_COLUMNS = [
+  ['קוד יוצרת', (r) => creatorCode(r.id)],
+  ['אזור', (r) => r.region_name],
+  ['גיל', (r) => (r.birth_year ? thisYear() - r.birth_year : '')],
+  ['תחומים', (r) => r.niches],
+  ['עוקבים באינסטגרם', (r) => r.instagram_followers],
+  ['עוקבים בטיקטוק', (r) => r.tiktok_followers],
+  ['ערוץ יוטיוב', (r) => yesNo(!!r.youtube_url)],
+  ['קהל', (r) => GENDER[r.audience_gender]],
+  ['גילאי קהל', (r) => (r.audience_age_min || r.audience_age_max ? `${r.audience_age_min ?? ''}-${r.audience_age_max ?? ''}` : '')],
+  ['מגזר', (r) => r.audience_sector],
+  ['בתשלום', (r) => yesNo(r.open_to_paid)],
+  ['בארטר', (r) => yesNo(r.open_to_barter)],
+  ['אירועים', (r) => yesNo(r.open_to_events)],
 ];
 
 const ADMIN_CSV_COLUMNS = [
+  ['קוד יוצרת', (r) => creatorCode(r.id)],
   ...CREATOR_CSV_COLUMNS,
   ['שנת לידה', (r) => r.birth_year],
   ['בתשלום', (r) => yesNo(r.open_to_paid)],
@@ -123,7 +152,14 @@ const ADMIN_CSV_COLUMNS = [
 // Must be registered before '/:id'
 router.get('/export.csv', async (req, res) => {
   const rows = await listCreators(req.query);
-  sendCsv(res, `creators-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(ADMIN_CSV_COLUMNS, rows));
+  sendCsv(res, `creators-with-names-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(ADMIN_CSV_COLUMNS, rows));
+});
+
+/** Anonymous list for brands: active members with a profile only, same filters as the table. */
+router.get('/export-brands.csv', async (req, res) => {
+  const rows = (await listCreators({ ...req.query, status: 'active', profile: 'complete' }))
+    .sort((a, b) => b.max_followers - a.max_followers);
+  sendCsv(res, `creator-club-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(BRAND_CSV_COLUMNS, rows));
 });
 
 const uuid = z.string().uuid();

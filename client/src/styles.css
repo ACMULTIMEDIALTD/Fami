@@ -382,3 +382,15 @@ a.list-row:hover { border-color: var(--wine); }
 .install-hint .row-inline { margin-top: 6px; }
 .share-box { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); margin-top: 12px; }
 .share-box code { direction: ltr; font-size: .85rem; background: var(--cream); padding: 4px 8px; border-radius: 6px; }
+
+.creator-code { font-size: .85rem; color: var(--muted); margin: -4px 0 6px; }
+
+.terms-box { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.terms-read-btn { align-self: stretch; }
+.check.locked { opacity: .65; cursor: pointer; }
+.check.locked input { pointer-events: none; }
+
+/* developer credit */
+.built-by { margin: 6px 0 0; font-size: .78rem; color: var(--muted); text-align: center; }
+.built-by a { color: inherit; font-weight: 500; text-underline-offset: 3px; }
+.app-footer { padding: 0 16px calc(20px + env(safe-area-inset-bottom)); margin-top: -56px; }

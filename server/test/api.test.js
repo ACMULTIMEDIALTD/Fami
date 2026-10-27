@@ -374,11 +374,47 @@ test('campaign images: upload, signed URL, members only', async () => {
   assert.equal(patched.body.campaign.image_url, null);
 });
 
-test('saving the profile keeps rates entered earlier (no longer in the form)', async () => {
-  const c = await makeCreator({ admin, rate_reel_ils: 700 });
-  await pool.query('UPDATE creators SET rate_reel_ils = 700 WHERE user_id = $1', [c.id]);
-  await c.agent.put('/api/v1/me/profile').send(profile({ full_name: 'שם חדש' })).expect(200);
-  const { rows } = await pool.query('SELECT rate_reel_ils, full_name FROM creators WHERE user_id = $1', [c.id]);
-  assert.equal(rows[0].rate_reel_ils, 700);
-  assert.equal(rows[0].full_name, 'שם חדש');
+test('rates are gone from the profile, admin views and CSV', async () => {
+  const c = await makeCreator({ admin });
+  const me = await c.agent.get('/api/v1/me/profile').expect(200);
+  assert.ok(!Object.keys(me.body.profile).some((k) => k.startsWith('rate_')));
+  const a = await admin.get(`/api/v1/admin/creators/${c.id}`).expect(200);
+  assert.ok(!Object.keys(a.body.profile).some((k) => k.startsWith('rate_')));
+  const list = await admin.get('/api/v1/admin/creators').expect(200);
+  assert.ok(!Object.keys(list.body.creators[0]).some((k) => k.startsWith('rate_')));
+  const csv = await admin.get('/api/v1/admin/creators/export.csv').expect(200);
+  assert.ok(!csv.text.includes('תעריף'));
+});
+
+test('two exports: with names for Noa, anonymous for brands', async () => {
+  const a = await makeCreator({ admin, full_name: 'שירה אנונימית', instagram_handle: 'shira.anon', city: 'רעננה', instagram_followers: 77000, niches: [2], birth_year: 1995 });
+  await makeCreator({ activate: false, admin, full_name: 'ממתינה לאישור' });
+  const code = `C-${a.id.replace(/-/g, '').slice(0, 6).toUpperCase()}`;
+
+  const noa = await admin.get('/api/v1/admin/creators/export.csv').expect(200);
+  assert.match(noa.text, /שירה אנונימית/);
+  assert.ok(noa.text.includes(code));
+
+  const brands = await admin.get('/api/v1/admin/creators/export-brands.csv?niche=2').expect(200);
+  assert.ok(brands.text.includes(code));
+  assert.ok(brands.text.includes('77000'));
+  for (const secret of ['שירה אנונימית', 'shira.anon', 'רעננה', a.email, 'ממתינה לאישור', '@']) {
+    assert.ok(!brands.text.includes(secret), `brand file must not contain ${secret}`);
+  }
+  const header = brands.text.replace(/^\uFEFF/, '').split('\r\n')[0].split(',');
+  for (const col of ['שם', 'טלפון', 'מייל', 'עיר', 'אינסטגרם', 'טיקטוק', 'יוטיוב']) {
+    assert.ok(!header.includes(col), `brand file must not have a "${col}" column`);
+  }
+
+  // Noa can find the creator by the code a brand sends back
+  const found = await admin.get(`/api/v1/admin/creators?q=${code}`).expect(200);
+  assert.deepEqual(found.body.creators.map((x) => x.id), [a.id]);
+});
+
+test('terms acceptance records that the terms were read to the end', async () => {
+  const c = await makeCreator({ admin, terms_accept: { version: '2026-10-v1', read_to_end: true } });
+  const { rows } = await pool.query(
+    `SELECT payload FROM events WHERE user_id = $1 AND type = 'terms_accepted' ORDER BY id DESC LIMIT 1`, [c.id]);
+  assert.equal(rows[0].payload.read_to_end, true);
+  assert.equal(rows[0].payload.version, '2026-10-v1');
 });
