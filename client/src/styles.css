@@ -396,3 +396,5 @@ a.list-row:hover { border-color: var(--wine); }
 .app-footer { padding: 0 16px calc(20px + env(safe-area-inset-bottom)); margin-top: -56px; }
 
 .contact-kv { margin: 8px 0 12px; }
+
+.spam-tip { font-size: .9rem; color: var(--muted); background: var(--cream-2); border-radius: 12px; padding: 12px 14px; margin: 4px 0 16px; line-height: 1.6; }
