@@ -12,6 +12,7 @@ import Install from './pages/Install.jsx';
 import Accessibility from './pages/Accessibility.jsx';
 import Join from './pages/Join.jsx';
 import Login from './pages/Login.jsx';
+import Password from './pages/Password.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Campaign from './pages/Campaign.jsx';
 import EditProfile from './pages/EditProfile.jsx';
@@ -22,6 +23,7 @@ import AdminCampaigns from './pages/admin/AdminCampaigns.jsx';
 import AdminCampaignForm from './pages/admin/AdminCampaignForm.jsx';
 import AdminCampaign from './pages/admin/AdminCampaign.jsx';
 import AdminBrands from './pages/admin/AdminBrands.jsx';
+import AdminPayments from './pages/admin/AdminPayments.jsx';
 
 const creator = (el) => <RequireAuth role="creator">{el}</RequireAuth>;
 const admin = (el) => <RequireAuth role="admin">{el}</RequireAuth>;
@@ -44,6 +46,7 @@ export default function App() {
         <Route path="/dashboard" element={creator(<Dashboard />)} />
         <Route path="/c/:slug" element={<RequireAuth><Campaign /></RequireAuth>} />
         <Route path="/me" element={creator(<EditProfile />)} />
+        <Route path="/password" element={<RequireAuth><Password /></RequireAuth>} />
         <Route path="/me/applications" element={creator(<MyApplications />)} />
         <Route path="/admin" element={admin(<AdminHome />)} />
         <Route path="/admin/creators" element={admin(<AdminCreators />)} />
@@ -51,6 +54,7 @@ export default function App() {
         <Route path="/admin/campaigns/new" element={admin(<AdminCampaignForm />)} />
         <Route path="/admin/campaigns/:id/edit" element={admin(<AdminCampaignForm />)} />
         <Route path="/admin/campaigns/:id" element={admin(<AdminCampaign />)} />
+        <Route path="/admin/payments" element={admin(<AdminPayments />)} />
         <Route path="/admin/brands" element={admin(<AdminBrands />)} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

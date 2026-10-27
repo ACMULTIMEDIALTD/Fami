@@ -47,7 +47,8 @@ export default function AdminCampaign() {
   const bulk = (status) => run(async () => {
     await api.post('/admin/applications/bulk', { ids: [...checked], status });
     setChecked(new Set());
-  }, status === 'selected' ? 'סומנו כנבחרות, נשלח להן מייל ✓' : 'עודכן ✓');
+  }, status === 'selected' ? 'סומנו כנבחרות, נשלח להן מייל ✓'
+    : status === 'completed' && data.campaign.type !== 'barter' ? 'הסרטון אושר, נשלח מייל להעלאת חשבונית ✓' : 'עודכן ✓');
 
   const setStatus = (status) => {
     run(() => api.patch(`/admin/campaigns/${id}`, { status }), `הסטטוס עודכן: ${CAMPAIGN_STATUS[status]}`);
@@ -129,7 +130,7 @@ export default function AdminCampaign() {
             <span>{checked.size} מסומנות</span>
             <button className="btn primary sm" disabled={busy || !checked.size} onClick={() => bulk('selected')}>סמני כנבחרות</button>
             <button className="btn ghost sm" disabled={busy || !checked.size} onClick={() => bulk('rejected')}>לא הפעם</button>
-            <button className="btn ghost sm" disabled={busy || !checked.size} onClick={() => bulk('completed')}>הושלם</button>
+            <button className="btn ghost sm" disabled={busy || !checked.size} onClick={() => bulk('completed')}>הסרטון אושר</button>
             <button className="btn ghost sm" disabled={busy || !checked.size} onClick={() => bulk('applied')}>החזרה להמתנה</button>
           </div>
           <div className="table-wrap">
@@ -156,7 +157,14 @@ export default function AdminCampaign() {
                     <td className="hide-sm small">{a.niches.join(', ')}</td>
                     <td><span className={`tier tier-${a.tier}`}>{TIERS[a.tier]}</span>{a.internal_rating ? <span className="small"> {'★'.repeat(a.internal_rating)}</span> : null}</td>
                     <td className="hide-sm small msg">{a.message}</td>
-                    <td><AppStatusChip status={a.status} admin /></td>
+                    <td>
+                      <AppStatusChip status={a.status} admin />
+                      {a.status === 'completed' && c.type !== 'barter' && (
+                        <Link to="/admin/payments" className="block small" onClick={(e) => e.stopPropagation()}>
+                          {a.paid_at ? 'שולם ✓' : a.invoice ? `חשבונית ₪${fmtNum(a.invoice.amount_ils)}` : 'ממתין לחשבונית'}
+                        </Link>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

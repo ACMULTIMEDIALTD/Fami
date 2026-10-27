@@ -3,7 +3,7 @@ import { config } from '../config.js';
 
 const TTL_SECONDS = 24 * 3600;
 
-const sign = (id, exp) => crypto.createHmac('sha256', config.jwtSecret).update(`img:${id}:${exp}`).digest('base64url');
+const sign = (id, exp, kind = 'img') => crypto.createHmac('sha256', config.jwtSecret).update(`${kind}:${id}:${exp}`).digest('base64url');
 
 /**
  * Images are members-only like the rest of the app, but an <img> tag can't send the app's bearer
@@ -16,10 +16,16 @@ export function imageUrl(id) {
   return `/api/v1/images/${id}?exp=${exp}&sig=${sign(id, exp)}`;
 }
 
-export function verifyImageSig(id, exp, sig) {
+/** Invoices hold bank details, so their links expire after an hour (and are only given to Noa and the creator). */
+export function invoiceFileUrl(id) {
+  const exp = Math.floor(Date.now() / 1000) + 3600;
+  return `/api/v1/images/invoice/${id}?exp=${exp}&sig=${sign(id, exp, 'inv')}`;
+}
+
+export function verifyImageSig(id, exp, sig, kind = 'img') {
   const n = Number(exp);
   if (!Number.isInteger(n) || n < Date.now() / 1000 || typeof sig !== 'string') return false;
-  const expected = Buffer.from(sign(id, n));
+  const expected = Buffer.from(sign(id, n, kind));
   const given = Buffer.from(sig);
   return expected.length === given.length && crypto.timingSafeEqual(expected, given);
 }
@@ -30,4 +36,10 @@ export function sniffImage(buf) {
   if (buf.length > 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'image/png';
   if (buf.length > 12 && buf.subarray(0, 4).toString('latin1') === 'RIFF' && buf.subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
   return null;
+}
+
+/** Invoices may also be PDFs. */
+export function sniffDocument(buf) {
+  if (buf.length > 4 && buf.subarray(0, 5).toString('latin1') === '%PDF-') return 'application/pdf';
+  return sniffImage(buf);
 }

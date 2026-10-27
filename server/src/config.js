@@ -20,7 +20,7 @@ export const config = {
   ],
   cookieSecure: env.COOKIE_SECURE ? env.COOKIE_SECURE === 'true' : isProd,
   cookieSameSite: (env.COOKIE_SAMESITE || 'lax').toLowerCase(),
-  termsVersion: env.CURRENT_TERMS_VERSION || '2026-10-v1',
+  termsVersion: env.CURRENT_TERMS_VERSION || '2026-10-v2',
   termsPdfUrl: env.TERMS_PDF_URL || '',
   whatsappGroupUrl: env.WHATSAPP_GROUP_URL || '',
   adminEmail: env.ADMIN_EMAIL || '',

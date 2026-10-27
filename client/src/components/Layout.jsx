@@ -35,6 +35,7 @@ export default function Layout() {
                 <NavLink to="/admin" end>היום</NavLink>
                 <NavLink to="/admin/creators">יוצרות</NavLink>
                 <NavLink to="/admin/campaigns">קמפיינים</NavLink>
+                <NavLink to="/admin/payments">תשלומים</NavLink>
                 <NavLink to="/admin/brands">מותגים</NavLink>
               </>
             ) : (

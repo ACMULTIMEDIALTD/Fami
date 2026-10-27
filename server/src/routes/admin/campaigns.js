@@ -8,6 +8,7 @@ import { whatsappText } from '../../lib/whatsapp.js';
 import { logEvent } from '../../lib/events.js';
 import { CREATOR_CSV_COLUMNS } from './creators.js';
 import { notifyCampaignOpened } from '../../lib/push.js';
+import { INVOICE_COLUMNS, invoiceOut } from '../../lib/payments.js';
 import { imageUrl } from '../../lib/images.js';
 
 const router = Router();
@@ -165,7 +166,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 const APPLICANTS_SQL = `
-  SELECT a.id, a.status, a.message, a.admin_note, a.applied_at, a.decided_at,
+  SELECT a.id, a.status, a.message, a.admin_note, a.applied_at, a.decided_at, a.paid_at, ${INVOICE_COLUMNS},
          u.id AS creator_id, u.email, u.phone, u.status AS user_status,
          cr.full_name, cr.city, r.name AS region_name,
          cr.instagram_handle, cr.instagram_followers, cr.tiktok_handle, cr.tiktok_followers, cr.youtube_url,
@@ -178,6 +179,8 @@ const APPLICANTS_SQL = `
   JOIN users u ON u.id = a.creator_id
   JOIN creators cr ON cr.user_id = a.creator_id
   LEFT JOIN regions r ON r.id = cr.region_id
+  LEFT JOIN invoices i ON i.application_id = a.id
+  LEFT JOIN invoice_files f ON f.id = i.file_id
   WHERE a.campaign_id = $1`;
 
 router.get('/:id/applications', async (req, res) => {
@@ -189,7 +192,7 @@ router.get('/:id/applications', async (req, res) => {
               max_followers DESC`,
     [campaign.id],
   );
-  res.json({ campaign, applications: rows });
+  res.json({ campaign, applications: rows.map((r) => ({ ...r, invoice: invoiceOut(r) })) });
 });
 
 router.get('/:id/export.csv', async (req, res) => {

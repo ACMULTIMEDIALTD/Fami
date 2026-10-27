@@ -27,6 +27,11 @@ export default function MyApplications() {
                 </span>
                 <TypeBadge type={a.type} />
                 <AppStatusChip status={a.status} />
+                {a.status === 'completed' && a.type !== 'barter' && (
+                  a.paid_at ? <span className="pay-chip done">שולם ✓</span>
+                    : a.has_invoice ? <span className="pay-chip">חשבונית התקבלה</span>
+                      : <span className="pay-chip todo">להעלות חשבונית</span>
+                )}
               </Link>
             </li>
           ))}

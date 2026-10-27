@@ -206,7 +206,14 @@ const routes = [
       needs_terms: !!c && c.terms_version !== TERMS_VERSION,
       terms: { version: TERMS_VERSION, pdf_url: '' },
       whatsapp_group_url: u.status === 'active' ? 'https://chat.whatsapp.com/' : null,
+      has_password: !!u.password,
+      can_reset_password: true,
     };
+  }],
+  ['POST', '/auth/password', (b) => {
+    if ((b.password || '').length < 8) fail(400, 'validation_error', 'סיסמה של 8 תווים לפחות');
+    me().password = b.password;
+    return { ok: true };
   }],
   ['GET', '/public/meta', () => ({ niches: db.niches, regions: db.regions, terms: { version: TERMS_VERSION, pdf_url: '' }, mail_enabled: true })],
   ['POST', '/public/brand-inquiry', (b) => {
@@ -497,6 +504,33 @@ const routes = [
   ['POST', '/admin/applications/bulk', (b) => {
     requireAdmin();
     return { ok: true, updated: updateApps(b.ids || [], b.status) };
+  }],
+  ['POST', '/admin/applications/:id/paid', (b, { id }) => {
+    requireAdmin();
+    const a = db.applications.find((x) => x.id === id);
+    if (!a) fail(404, 'application_not_found');
+    a.paid_at = b.paid ? a.paid_at || now() : null;
+    return { ok: true };
+  }],
+  // Demo: approved videos in paid campaigns; every other one "uploaded" a sample invoice
+  ['GET', '/admin/payments', () => {
+    requireAdmin();
+    const rows = db.applications.filter((a) => a.status === 'completed')
+      .map((a) => ({ a, c: db.campaigns.find((x) => x.id === a.campaign_id), cr: creatorOf(a.creator_id) }))
+      .filter(({ c }) => c && c.type !== 'barter');
+    return {
+      payments: rows.map(({ a, c, cr }, i) => ({
+        id: a.id,
+        approved_at: a.decided_at,
+        paid_at: a.paid_at || null,
+        creator: { id: a.creator_id, full_name: cr?.full_name, phone: db.users.find((u) => u.id === a.creator_id)?.phone, billing_status: cr?.billing_status },
+        campaign: { id: c.id, title: c.title, slug: c.slug, payment_note: c.payment_note },
+        invoice: i % 2 ? null : {
+          doc_type: 'receipt', amount_ils: 400, account_holder: cr?.full_name, bank_name: 'בנק לאומי (10)', branch: '812', account_number: '123456',
+          uploaded_at: a.decided_at, file_name: 'קבלה.pdf', file_mime: 'application/pdf', file_url: '#',
+        },
+      })),
+    };
   }],
 ];
 

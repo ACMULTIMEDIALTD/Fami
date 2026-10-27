@@ -159,6 +159,62 @@ export const mails = {
     });
   },
 
+  contentApproved: (to, campaign) => {
+    const url = `${config.appUrl}/c/${campaign.slug}`;
+    return sendMail({
+      to,
+      subject: `הסרטון אושר: ${campaign.title} ✓ אפשר להעלות חשבונית`,
+      text: `הסרטון שלך לקמפיין "${campaign.title}" אושר!\nהשלב הבא: להעלות חשבונית (או קבלה) ופרטי חשבון בנק בעמוד הקמפיין:\n${url}`,
+      html: layout({
+        preheader: `השלב הבא בקמפיין "${campaign.title}": חשבונית ופרטי בנק.`,
+        title: 'הסרטון אושר ✓',
+        body: `<p>עבודה מעולה! הסרטון שלך לקמפיין הזה אושר:</p>
+          ${details([row('קמפיין', `<b>${esc(campaign.title)}</b>`)])}
+          <p style="margin-top:14px">כדי שנוכל להעביר את התשלום, צריך להעלות בעמוד הקמפיין <b>חשבונית עסקה, חשבונית מס או קבלה</b> על הסכום שסוכם, ולמלא את פרטי חשבון הבנק.</p>`,
+        cta: { label: 'להעלאת החשבונית', url },
+        note: 'התשלום מועבר לפי תנאי הקהילה. שאלות? פני לנועה בווטסאפ.',
+      }),
+    });
+  },
+
+  paid: (to, a) => {
+    const url = `${config.appUrl}/c/${a.slug}`;
+    const amount = a.amount_ils ? `₪${Number(a.amount_ils).toLocaleString('en-US')}` : null;
+    return sendMail({
+      to,
+      subject: `התשלום על "${a.title}" הועבר 💸`,
+      text: `התשלום על הקמפיין "${a.title}"${amount ? ` (${amount})` : ''} הועבר לחשבון שמסרת.\n${url}`,
+      html: layout({
+        preheader: 'התשלום הועבר לחשבון הבנק שמסרת.',
+        title: 'התשלום הועבר 💸',
+        body: `<p>התשלום על הקמפיין הועבר לחשבון הבנק שמסרת:</p>
+          ${details([row('קמפיין', `<b>${esc(a.title)}</b>`), ...(amount ? [row('סכום', `<span dir="ltr">${amount}</span>`)] : [])])}
+          <p style="margin-top:14px">ההעברה עשויה להופיע בחשבון תוך כמה ימי עסקים. תודה על שיתוף הפעולה!</p>`,
+        cta: { label: 'לעמוד הקמפיין', url },
+      }),
+    });
+  },
+
+  invoiceUploaded: ({ name, title, amount, docType }) => {
+    const url = `${config.appUrl}/admin/payments`;
+    return sendMail({
+      to: config.notifyEmail,
+      subject: `חשבונית חדשה: ${name} · ${title}`,
+      text: `${name} העלתה ${docType} על ₪${amount} לקמפיין "${title}".\n${url}`,
+      html: layout({
+        preheader: `${name} העלתה ${docType} לקמפיין "${title}".`,
+        title: 'חשבונית חדשה ממתינה לתשלום',
+        body: `${details([
+          row('יוצרת', `<b>${esc(name)}</b>`),
+          row('קמפיין', esc(title)),
+          row('מסמך', esc(docType)),
+          row('סכום', `<span dir="ltr">₪${Number(amount).toLocaleString('en-US')}</span>`),
+        ])}`,
+        cta: { label: 'למסך התשלומים', url },
+      }),
+    });
+  },
+
   newSignup: (name, email) => {
     const url = `${config.appUrl}/admin/creators?status=pending`;
     return sendMail({
