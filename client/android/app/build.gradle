@@ -7,8 +7,9 @@ android {
         applicationId "il.co.noaavital.creatorclub"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // The cloud build (android-play.yml) sets these per release
+        versionCode((System.getenv('ANDROID_VERSION_CODE') ?: '1') as Integer)
+        versionName(System.getenv('ANDROID_VERSION_NAME') ?: '1.0')
         manifestPlaceholders = [appLinkHost: project.findProperty('appLinkHost') ?: 'club.noaavital.co.il']
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -17,8 +18,22 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Upload key for Google Play, given by the cloud build through environment variables.
+    // Without them a release build is unsigned (local builds sign with Android Studio instead).
+    def keystoreFile = System.getenv('ANDROID_KEYSTORE_FILE')
+    signingConfigs {
+        if (keystoreFile) {
+            upload {
+                storeFile file(keystoreFile)
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: 'upload'
+                keyPassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
+            if (keystoreFile) signingConfig signingConfigs.upload
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

@@ -76,6 +76,30 @@ npm run app:assets      # אחרי החלפת לוגו ב-client/resources: מי
 
 אחרי שיש Team ID מחליפים את `APPLE_TEAM_ID` בקובץ `client/public/.well-known/apple-app-site-association`, כדי שקישורי קמפיינים מווטסאפ ייפתחו באפליקציה.
 
+## אנדרואיד בענן: Google Play
+
+שני תהליכים בגיטהאב (Actions). ה-repo ציבורי, ולכן מפתח החתימה נשמר בו **רק מוצפן**.
+
+**הכנה חד-פעמית:**
+1. **סיסמה:** בוחרים סיסמה ארוכה, לפחות 16 תווים (רצוי ממחולל סיסמאות), ושומרים אותה גם אצלכם במקום בטוח.
+   ב-repo ← Settings ← Secrets and variables ← Actions ← New repository secret, בשם `ANDROID_KEYSTORE_PASSWORD`.
+2. **מפתח העלאה:** ב-Actions ← **Android: create upload key** ← Run workflow (על main).
+   התהליך יוצר את המפתח ושומר בקובץ `client/android/upload-key.p12.enc` רק עותק מוצפן. מריצים אותו **פעם אחת בלבד**.
+3. **חשבון Google Play Console:** ‏$25, חד-פעמי. יוצרים בו אפליקציה חדשה בשם Creator Club.
+
+**בנייה:** Actions ← **Android → Google Play** ← Run workflow, ומקלידים מספר גרסה (למשל `1.0`). מספר הבנייה (version code) עולה לבד.
+- **ההעלאה הראשונה ידנית:** מורידים את קובץ ה-‎.aab מ-Artifacts בעמוד ההרצה, ובונים בו Play Console ← Testing ← Internal testing (או Closed testing) ← Create release ← Upload.
+  בהעלאה הראשונה מאשרים את **Play App Signing**: גוגל שומרת את מפתח החתימה הסופי, והמפתח שלנו משמש רק להעלאה. אם הוא יאבד, אפשר לבקש מגוגל להחליף אותו.
+- **אחר כך, אוטומטית (לא חובה):**
+  1. ב-Google Cloud יוצרים Service account ומורידים מפתח JSON.
+  2. ב-Play Console ← Users and permissions מזמינים את המייל של ה-Service account עם הרשאת Release.
+  3. שומרים את תוכן ה-JSON כסוד בשם `PLAY_SERVICE_ACCOUNT_JSON`.
+  מעכשיו כל הרצה מעלה ישר למסלול שנבחר: draft, או completed כדי לפרסם מיד.
+- **התראות לאנדרואיד (לא חובה):** שומרים את תוכן `google-services.json` מ-Firebase כסוד בשם `GOOGLE_SERVICES_JSON`.
+  בלי הסוד הזה האפליקציה עובדת כרגיל, רק בלי התראות, ולא מבקשת הרשאה להתראות.
+- **חשבון מפתח פרטי חדש:** גוגל דורשת בדיקה סגורה עם 12 בודקים במשך 14 יום לפני שאפשר לפרסם לכולם.
+- **אחרי ההעלאה הראשונה:** מעתיקים את טביעת האצבע SHA-256 מ-Play Console ← Test and release ← App integrity ← App signing לקובץ `client/public/.well-known/assetlinks.json`, כדי שקישורים מווטסאפ ייפתחו באפליקציה.
+
 ### מה החנויות ידרשו
 - מדיניות פרטיות: קישור לעמוד באתר.
 - צילומי מסך: 6.7 אינץ' לאייפון, וטלפון לאנדרואיד.
