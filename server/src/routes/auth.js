@@ -11,6 +11,7 @@ import { unregisterDevice } from '../lib/push.js';
 import { normalizePhone } from '../lib/phone.js';
 import { logEvent } from '../lib/events.js';
 import { mails } from '../lib/mailer.js';
+import { suggestEmail } from '../lib/emailTypos.js';
 
 const router = Router();
 const MAGIC_TTL_MIN = 30;
@@ -55,6 +56,12 @@ const signupSchema = z.object({
 
 router.post('/signup', limiter, async (req, res) => {
   const { email, phone, password } = parse(signupSchema, req.body);
+  const meant = suggestEmail(email);
+  if (meant) {
+    throw new HttpError(400, 'validation_error', `נראה שיש טעות הקלדה במייל. התכוונת ל-${meant}?`, {
+      fields: { email: `התכוונת ל-${meant}?` }, suggestion: meant,
+    });
+  }
   if (!password && !config.mailEnabled) {
     // No email sign-in links yet → without a password she could never log in again
     throw new HttpError(400, 'validation_error', 'יש לבחור סיסמה', { fields: { password: 'יש לבחור סיסמה (8 תווים לפחות)' } });

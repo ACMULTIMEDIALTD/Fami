@@ -6,6 +6,7 @@ import { useAuth, Spinner } from '../auth.jsx';
 import { Field, ErrorBox } from '../components/ui.jsx';
 import ProfileWizard from '../components/ProfileWizard.jsx';
 import { useMeta } from '../meta.js';
+import { suggestEmail } from '../lib/emailTypos.js';
 
 function AccountStep({ onDone }) {
   const meta = useMeta();
@@ -29,11 +30,18 @@ function AccountStep({ onDone }) {
     }
   };
   const fe = error?.fields || {};
+  // "gnail.com" and friends: offer the fix before she ends up with an address that never gets mail
+  const meant = suggestEmail(f.email);
 
   return (
     <form className="card form" onSubmit={submit} noValidate>
-      <Field label="מייל" required error={fe.email}>
+      <Field label="מייל" required error={meant ? null : fe.email}>
         <input type="email" dir="ltr" value={f.email} onChange={set('email')} autoComplete="email" />
+        {meant && (
+          <button type="button" className="email-fix" onClick={() => { setF({ ...f, email: meant }); setError(null); }}>
+            התכוונת ל-<b dir="ltr">{meant}</b>? לחצי לתיקון
+          </button>
+        )}
       </Field>
       <Field label="טלפון נייד" required error={fe.phone}>
         <input type="tel" dir="ltr" value={f.phone} onChange={set('phone')} autoComplete="tel" placeholder="050-0000000" />
