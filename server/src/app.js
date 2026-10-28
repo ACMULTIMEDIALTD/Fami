@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import { config } from './config.js';
 import { loadUser } from './lib/auth.js';
 import { errorHandler, HttpError } from './lib/http.js';
+import { useClientIp } from './lib/clientIp.js';
 import authRoutes from './routes/auth.js';
 import publicRoutes from './routes/public.js';
 import meRoutes from './routes/me.js';
@@ -14,8 +15,9 @@ import imageRoutes from './routes/images.js';
 
 export function createApp() {
   const app = express();
-  app.set('trust proxy', 1); // Render / Vercel sit in front; needed for req.ip + secure cookies
+  app.set('trust proxy', 1); // Render's proxy sets the protocol (secure cookies); the visitor IP comes from useClientIp
   app.disable('x-powered-by');
+  app.use(useClientIp); // before the rate limiters, which count per req.ip
   app.use(helmet());
   app.use(cors({ origin: config.corsOrigins, credentials: true }));
   app.use(express.json({ limit: '200kb' }));

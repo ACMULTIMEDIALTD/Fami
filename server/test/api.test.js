@@ -741,3 +741,26 @@ test('security: password change ends other sessions, admin password survives res
   const ip = await agent().get('/api/v1/public/client-ip').expect(200);
   assert.ok(ip.body.ip);
 });
+
+test('visitor IP: from Vercel / Cloudflare headers, not the proxy in front', async () => {
+  // Website: Vercel's proxy passes the visitor in x-vercel-forwarded-for; Cloudflare saw Vercel
+  const web = await agent().get('/api/v1/public/client-ip')
+    .set('x-vercel-forwarded-for', '203.0.113.7').set('cf-connecting-ip', '18.208.245.124')
+    .set('x-forwarded-for', '203.0.113.7,18.208.245.124, 104.22.104.139').expect(200);
+  assert.equal(web.body.ip, '203.0.113.7');
+  // App: straight to Render through Cloudflare
+  const app = await agent().get('/api/v1/public/client-ip')
+    .set('cf-connecting-ip', '198.51.100.9').set('x-forwarded-for', '198.51.100.9, 172.71.148.170').expect(200);
+  assert.equal(app.body.ip, '198.51.100.9');
+  // Garbage is ignored
+  const junk = await agent().get('/api/v1/public/client-ip').set('x-vercel-forwarded-for', 'not-an-ip').set('cf-connecting-ip', '198.51.100.10').expect(200);
+  assert.equal(junk.body.ip, '198.51.100.10');
+
+  // The IP stored with the terms is the visitor's
+  const a = agent();
+  await a.post('/api/v1/auth/signup').send({ email: 'ipcheck@test.local', phone: '0526667788', password: 'password123' }).expect(201);
+  await a.put('/api/v1/me/profile').set('x-vercel-forwarded-for', '203.0.113.42').send(profile()).expect(201);
+  const me = (await a.get('/api/v1/auth/me').expect(200)).body.user;
+  const { rows: [row] } = await pool.query('SELECT terms_ip FROM creators WHERE user_id = $1', [me.id]);
+  assert.equal(row.terms_ip, '203.0.113.42');
+});
