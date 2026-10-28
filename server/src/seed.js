@@ -6,11 +6,16 @@ import { config } from './config.js';
 export const NICHES = ['אופנה', 'יופי', 'אמהות', 'אוכל', 'לייפסטייל', 'כושר', 'בית', 'טיולים', 'טכנולוגיה', 'פיננסים', 'אחר'];
 export const REGIONS = ['צפון', 'חיפה והקריות', 'השרון', 'מרכז', 'תל אביב', 'ירושלים', 'שפלה', 'דרום', 'אילת'];
 
+/**
+ * Creates Noa's admin account on first start. ADMIN_PASSWORD is only the initial password:
+ * an existing account keeps the password she set, so a restart/deploy doesn't undo a change.
+ */
 export async function upsertAdmin(email, password) {
   const hash = await bcrypt.hash(password, 12);
   const { rows } = await pool.query(
     `INSERT INTO users (email, password_hash, role, status) VALUES ($1, $2, 'admin', 'active')
-     ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = 'admin', status = 'active'
+     ON CONFLICT (email) DO UPDATE SET role = 'admin', status = 'active',
+       password_hash = COALESCE(users.password_hash, EXCLUDED.password_hash)
      RETURNING id`,
     [email, hash],
   );

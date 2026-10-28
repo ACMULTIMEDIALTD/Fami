@@ -20,7 +20,10 @@ const serveDocument = (kind) => async (req, res) => {
   const name = f.file_name || `invoice.${ext}`;
   res.set('Content-Type', f.mime);
   res.set('Content-Disposition', `inline; filename="invoice.${ext}"; filename*=UTF-8''${encodeURIComponent(name)}`);
-  res.set('Content-Security-Policy', 'sandbox'); // a PDF is opened as a document; no scripts
+  // Images get a sandbox (nothing in them can run). Not PDFs: Chrome refuses to show a PDF under a
+  // sandbox policy. They're safe without it: the upload checked they really are PDFs, and nosniff
+  // stops the browser from treating them as anything else.
+  if (f.mime !== 'application/pdf') res.set('Content-Security-Policy', 'sandbox');
   res.set('Cache-Control', 'private, no-store');
   res.send(f.data);
 };

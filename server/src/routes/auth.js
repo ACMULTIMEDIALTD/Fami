@@ -23,6 +23,20 @@ const limiter = rateLimit({
   message: { error: 'rate_limited', message: 'יותר מדי ניסיונות, נסי שוב בעוד כמה דקות' },
 });
 
+// Per-email limit on top of the per-IP one: slows password/code guessing against one account even
+// from many addresses, and stops flooding someone's inbox with sign-in emails.
+const emailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: config.isTest ? 10_000 : 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => `email:${String(req.body?.email || '').trim().toLowerCase()}`,
+  message: { error: 'rate_limited', message: 'יותר מדי ניסיונות, נסי שוב בעוד כמה דקות' },
+});
+
+// Compared against when the email is unknown, so the answer takes the same time either way
+const DUMMY_HASH = bcrypt.hashSync('no-such-user-dummy-password', 12);
+
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 // The code is only 6 digits, so it's hashed with the server secret and bound to the user
 const codeHash = (userId, code) => crypto.createHmac('sha256', config.jwtSecret).update(`login-code:${userId}:${code}`).digest('hex');
@@ -59,7 +73,7 @@ router.post('/signup', limiter, async (req, res) => {
     [email, phone, hash],
   );
   await logEvent(user.id, 'signup', { ip: req.ip, app: req.get('X-Client') === 'app' });
-  const token = setSession(req, res, user, 'signup');
+  const token = await setSession(req, res, user, 'signup');
   res.status(201).json({ user, token });
 });
 
@@ -69,7 +83,7 @@ const loginSchema = z.object({
   next: z.string().nullish(), // the login page sends null when there's no ?next=
 });
 
-router.post('/login', limiter, async (req, res) => {
+router.post('/login', limiter, emailLimiter, async (req, res) => {
   const { email, password, next } = parse(loginSchema, req.body);
   const user = await one('SELECT id, email, phone, role, status, password_hash FROM users WHERE email = $1', [email]);
 
@@ -96,13 +110,13 @@ router.post('/login', limiter, async (req, res) => {
     return res.json({ ok: true, magic: true });
   }
 
-  const valid = user?.password_hash && (await bcrypt.compare(password, user.password_hash));
+  const valid = (await bcrypt.compare(password, user?.password_hash || DUMMY_HASH)) && !!user?.password_hash;
   if (!valid) throw new HttpError(401, 'invalid_credentials', 'מייל או סיסמה שגויים');
   if (['suspended', 'left'].includes(user.status)) throw new HttpError(403, 'account_inactive', 'החשבון אינו פעיל');
 
   await query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
   await logEvent(user.id, 'login', { method: 'password' });
-  const token = setSession(req, res, user, 'password');
+  const token = await setSession(req, res, user, 'password');
   delete user.password_hash;
   res.json({ user, token });
 });
@@ -123,7 +137,7 @@ async function consumeMagic(raw) {
 }
 
 /** Sign in by typing the 6-digit code from the email (stays inside the home-screen app). */
-router.post('/code', limiter, async (req, res) => {
+router.post('/code', limiter, emailLimiter, async (req, res) => {
   const { email, code } = parse(z.object({
     email: z.string().trim().toLowerCase().email('כתובת מייל לא תקינה'),
     code: z.string().trim().regex(/^\d{6}$/, 'הקוד הוא 6 ספרות'),
@@ -156,7 +170,7 @@ router.post('/code', limiter, async (req, res) => {
   await query('UPDATE magic_links SET used_at = now() WHERE token = $1', [link.token]);
   await query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
   await logEvent(user.id, 'login', { method: 'code' });
-  const token = setSession(req, res, user, 'code');
+  const token = await setSession(req, res, user, 'code');
   res.json({ user, token });
 });
 
@@ -165,16 +179,8 @@ router.post('/magic', limiter, async (req, res) => {
   const { token: raw } = parse(z.object({ token: z.string().min(10).max(200) }), req.body);
   const user = await consumeMagic(raw);
   if (!user) throw new HttpError(410, 'link_expired', 'הקישור פג תוקף או שכבר נעשה בו שימוש. אפשר לבקש קישור חדש.');
-  const token = setSession(req, res, user, 'magic');
+  const token = await setSession(req, res, user, 'magic');
   res.json({ user, token });
-});
-
-// Links sent before /m/<token> existed still work
-router.get('/magic/:token', async (req, res) => {
-  const user = await consumeMagic(req.params.token);
-  if (!user) return res.redirect(`${config.appUrl}/login?error=link_expired`);
-  setSession(req, res, user, 'magic');
-  res.redirect(`${config.appUrl}${safeNext(req.query.next) || '/dashboard'}`);
 });
 
 router.post('/logout', async (req, res) => {
@@ -207,9 +213,12 @@ router.post('/password', limiter, requireAuth, async (req, res) => {
       });
     }
   }
-  await query('UPDATE users SET password_hash = $1 WHERE id = $2', [await bcrypt.hash(password, 12), req.user.id]);
+  // New password → every other session (other phones, an old stolen token) is signed out
+  await query('UPDATE users SET password_hash = $1, session_version = session_version + 1 WHERE id = $2',
+    [await bcrypt.hash(password, 12), req.user.id]);
   await logEvent(req.user.id, 'password_changed', { reset: !!hash && recentEmailLogin(req) });
-  res.json({ ok: true });
+  const token = await setSession(req, res, req.user, 'password'); // this device stays signed in
+  res.json({ ok: true, token });
 });
 
 router.get('/me', requireAuth, async (req, res) => {

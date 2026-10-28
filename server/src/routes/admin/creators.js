@@ -251,7 +251,7 @@ router.post('/:id/reset-password', async (req, res) => {
   const password = Array.from(crypto.randomBytes(10), (b) => alphabet[b % alphabet.length]).join('');
   const hash = await bcrypt.hash(password, 12);
   const user = await one(
-    `UPDATE users SET password_hash = $2 WHERE id = $1 AND role = 'creator' RETURNING id`,
+    `UPDATE users SET password_hash = $2, session_version = session_version + 1 WHERE id = $1 AND role = 'creator' RETURNING id`,
     [req.params.id, hash],
   );
   if (!user) throw notFound('creator_not_found');

@@ -36,9 +36,14 @@ if (!DEMO) {
     nl_dir: '/nagishli/nl-files/',
     nl_link: '/accessibility', // the widget's "accessibility statement" item opens our page
   });
-  const s = document.createElement('script');
-  s.src = '/nagishli/nagishli.js?v=2.3';
-  s.charset = 'utf-8';
-  s.defer = true;
-  document.body.appendChild(s);
+  const load = (src, onload) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.charset = 'utf-8';
+    if (onload) s.onload = onload;
+    document.body.appendChild(s);
+  };
+  // The widget would otherwise fetch jQuery 1.8 (2012, known vulnerabilities) from code.jquery.com.
+  // With jQuery already on the page it uses ours: current and served from our own site.
+  load('/nagishli/jquery-3.7.1.min.js', () => load('/nagishli/nagishli.js?v=2.3'));
 }

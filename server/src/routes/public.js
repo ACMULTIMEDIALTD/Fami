@@ -23,6 +23,23 @@ router.get('/meta', async (_req, res) => {
   });
 });
 
+/**
+ * Shows the caller the address the server sees for them, and the proxy headers it came with
+ * (only the caller's own request). Used to check that rate limits and the IP recorded with
+ * the terms are the visitor's, not Vercel's or Cloudflare's.
+ */
+router.get('/client-ip', (req, res) => {
+  const h = (name) => req.get(name) || null;
+  res.json({
+    ip: req.ip,
+    forwarded_for: h('x-forwarded-for'),
+    cf_connecting_ip: h('cf-connecting-ip'),
+    true_client_ip: h('true-client-ip'),
+    x_real_ip: h('x-real-ip'),
+    x_vercel_forwarded_for: h('x-vercel-forwarded-for'),
+  });
+});
+
 const inquiryLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: config.isTest ? 10_000 : 5, legacyHeaders: false });
 
 const inquirySchema = z.object({
