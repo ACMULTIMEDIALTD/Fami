@@ -50,6 +50,18 @@ export default function AdminHome() {
         </div>
       </div>
       <ErrorBox error={error} />
+      {data.email_typos?.length > 0 && (
+        <div className="alert">
+          <b>⚠️ מיילים עם טעות הקלדה</b> (היוצרות האלה לא מקבלות קודי כניסה ומיילים). אפשר לתקן בכרטיס היוצרת, בעיפרון שליד המייל:
+          <ul>
+            {data.email_typos.map((t) => (
+              <li key={t.id}>
+                <Link to={`/admin/creators?open=${t.id}`}>{t.full_name || t.email}</Link>: <bdi dir="ltr">{t.email}</bdi>, כנראה התכוונה ל-<bdi dir="ltr">{t.suggestion}</bdi>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <InstallLinkBox />
       <div className="stats">
         <div className="stat"><b>{stats.active}</b><span>חברות פעילות</span></div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api.js';
 import { Spinner } from '../../auth.jsx';
+import { suggestEmail } from '../../lib/emailTypos.js';
 import { BILLING, GENDER, USER_STATUS, TIERS, fmtNum, fmtDate, fmtDateTime } from '../../labels.js';
 import { ErrorBox, AppStatusChip, ConfirmButton, igUrl, ttUrl } from '../../components/ui.jsx';
 
@@ -9,6 +10,29 @@ const EVENT_LABELS = {
   signup: 'נרשמה', login: 'התחברה', profile_created: 'השלימה פרופיל', profile_updated: 'עדכנה פרופיל',
   terms_accepted: 'אישרה תנאים', campaign_viewed: 'צפתה בקמפיין', applied: 'הגישה מועמדות', withdrawn: 'ביטלה מועמדות',
 };
+
+/** The creator's email, with a pencil to fix a typo (otherwise she never gets codes or emails). */
+function EmailEdit({ email, saving, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(email);
+  const meant = suggestEmail(email);
+  if (!editing) {
+    return (
+      <>
+        <a href={`mailto:${email}`} dir="ltr">{email}</a>{' '}
+        <button type="button" className="linklike small" onClick={() => { setValue(meant || email); setEditing(true); }} aria-label="עריכת מייל">✏️</button>
+        {meant && <span className="email-typo"> נראה כמו טעות הקלדה</span>}
+      </>
+    );
+  }
+  return (
+    <span className="email-edit">
+      <input type="email" dir="ltr" value={value} onChange={(e) => setValue(e.target.value)} aria-label="מייל" />
+      <button type="button" className="btn sm primary" disabled={saving || !value.trim()} onClick={async () => { await onSave(value.trim()); setEditing(false); }}>שמירה</button>
+      <button type="button" className="btn sm ghost" onClick={() => setEditing(false)}>ביטול</button>
+    </span>
+  );
+}
 
 export default function CreatorDrawer({ id, meta, onClose, onChanged }) {
   const [data, setData] = useState(null);
@@ -60,7 +84,7 @@ export default function CreatorDrawer({ id, meta, onClose, onChanged }) {
             <h2>{p?.full_name || u.email}</h2>
             <div className="creator-code" title="הקוד שמופיע בקובץ ללקוחות">קוד: <bdi dir="ltr">C-{u.id.replace(/-/g, '').slice(0, 6).toUpperCase()}</bdi></div>
             <div className="muted small">
-              <a href={`mailto:${u.email}`} dir="ltr">{u.email}</a> · <a href={`https://wa.me/972${(u.phone || '').replace(/^0/, '')}`} target="_blank" rel="noreferrer" dir="ltr">{u.phone}</a>
+              <EmailEdit email={u.email} saving={saving} onSave={(email) => patch({ email })} /> · <a href={`https://wa.me/972${(u.phone || '').replace(/^0/, '')}`} target="_blank" rel="noreferrer" dir="ltr">{u.phone}</a>
               <br />נרשמה {fmtDate(u.created_at)} · כניסה אחרונה {fmtDateTime(u.last_login_at)}
             </div>
 

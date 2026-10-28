@@ -189,6 +189,8 @@ router.get('/:id', async (req, res) => {
 });
 
 const patchSchema = z.object({
+  // Noa fixes a mistyped address (otherwise she gets no codes or emails at all)
+  email: z.string().trim().toLowerCase().email('כתובת מייל לא תקינה').max(200).optional(),
   status: z.enum(['pending', 'active', 'suspended', 'left']).optional(),
   tier: z.enum(['A', 'B', 'new']).optional(),
   admin_notes: z.string().max(5000).nullable().optional(),
@@ -207,6 +209,16 @@ router.patch('/:id', async (req, res) => {
       [req.params.id],
     );
     if (!user) throw notFound('creator_not_found');
+
+    if (data.email && data.email !== user.email.toLowerCase()) {
+      const taken = await db.query('SELECT 1 FROM users WHERE email = $1 AND id <> $2', [data.email, user.id]);
+      if (taken.rowCount) throw new HttpError(409, 'email_taken', 'המייל הזה כבר רשום לחשבון אחר', { fields: { email: 'המייל הזה כבר רשום לחשבון אחר' } });
+      await db.query('UPDATE users SET email = $2 WHERE id = $1', [user.id, data.email]);
+      // Codes/links sent to the old address stop working
+      await db.query('UPDATE magic_links SET used_at = now() WHERE user_id = $1 AND used_at IS NULL', [user.id]);
+      await logEvent(req.user.id, 'creator_email_changed', { creator_id: user.id, from: user.email, to: data.email }, db);
+      user.email = data.email;
+    }
 
     if (data.status && data.status !== user.status) {
       if (data.status === 'active' && !user.has_profile) {
@@ -233,7 +245,7 @@ router.patch('/:id', async (req, res) => {
     await sendPush([result.user.id], { title: 'ברוכה הבאה לקהילה! 🎉', body: 'החברות שלך אושרה. הקמפיינים הפתוחים מחכים לך.', url: '/dashboard' });
   }
   const fresh = await one(
-    `SELECT u.status, c.tier, c.admin_notes, c.internal_rating
+    `SELECT u.email, u.status, c.tier, c.admin_notes, c.internal_rating
      FROM users u LEFT JOIN creators c ON c.user_id = u.id WHERE u.id = $1`,
     [req.params.id],
   );

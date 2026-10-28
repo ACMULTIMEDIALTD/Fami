@@ -764,3 +764,37 @@ test('visitor IP: from Vercel / Cloudflare headers, not the proxy in front', asy
   const { rows: [row] } = await pool.query('SELECT terms_ip FROM creators WHERE user_id = $1', [me.id]);
   assert.equal(row.terms_ip, '203.0.113.42');
 });
+
+test('email typos: signup suggests the fix, Noa sees and corrects them', async () => {
+  const bad = await agent().post('/api/v1/auth/signup').send({ email: 'narkis@gnail.com', phone: '0521110000', password: 'password123' }).expect(400);
+  assert.equal(bad.body.suggestion, 'narkis@gmail.com');
+  assert.match(bad.body.fields.email, /gmail\.com/);
+
+  // Someone who signed up before this check (simulated)
+  const c = await makeCreator({ admin: await loginAdmin2() });
+  await pool.query("UPDATE users SET email = 'typo.person@gnail.com' WHERE id = $1", [c.id]);
+  const noa = await loginAdmin2();
+  const ov = (await noa.get('/api/v1/admin/overview').expect(200)).body;
+  const t = ov.email_typos.find((x) => x.id === c.id);
+  assert.equal(t.suggestion, 'typo.person@gmail.com');
+
+  // Taken address → 409; invalid → 400; fix → she can sign in with the right address
+  await noa.patch(`/api/v1/admin/creators/${c.id}`).send({ email: 'admin@test.local' }).expect(409);
+  await noa.patch(`/api/v1/admin/creators/${c.id}`).send({ email: 'nope' }).expect(400);
+  const r = await noa.patch(`/api/v1/admin/creators/${c.id}`).send({ email: 'Typo.Person@gmail.com' }).expect(200);
+  assert.equal(r.body.creator.email, 'typo.person@gmail.com');
+  await agent().post('/api/v1/auth/login').send({ email: 'typo.person@gmail.com', password: 'password123' }).expect(200);
+  assert.ok(!(await noa.get('/api/v1/admin/overview').expect(200)).body.email_typos.some((x) => x.id === c.id));
+  // Creators can't change emails this way
+  await c.agent.patch(`/api/v1/admin/creators/${c.id}`).send({ email: 'x@gmail.com' }).expect(403);
+});
+
+// The security test changed the admin password; sign in with whichever is current
+async function loginAdmin2() {
+  for (const password of ['noa-own-password', 'admin-password']) {
+    const a = agent();
+    const res = await a.post('/api/v1/auth/login').send({ email: 'admin@test.local', password });
+    if (res.status === 200) return a;
+  }
+  throw new Error('admin login failed');
+}
